@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>光子盘点</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
+
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;margin:0;touch-action:none}
+h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
+#cameraWrap{position:relative;width:100vw;height:50vh;background:#000;overflow:hidden}
+#video{
+  width:100%;height:100%;object-fit:cover;
+  transform-origin:center;will-change:transform;transform:translateZ(0)
+}
+.focus-frame{position:absolute;top:50%;left:50%;width:200px;height:200px;transform:translate(-50%,-50%);border:2.5px solid #00ffcc;border-radius:10px;animation:breath 1.5s ease-in-out infinite}
+@keyframes breath{0%{opacity:1;transform:translate(-50%,-50%) scale(1)}50%{opacity:0.6;transform:translate(-50%,-50%) scale(1.05)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+#captureBtn{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.95);border:4px solid #007bff;font-size:30px;display:flex;align-items:center;justify-content:center;padding:0}
+
+.toolbar{display:flex;justify-content:space-around;padding:10px 5px;background:#111;position:sticky;bottom:0;z-index:100}
+.toolbar button{border:none;color:#fff;padding:12px 16px;border-radius:8px;font-size:14px;flex:1;margin:0 4px;max-width:120px}
+.toolbar button:nth-child(1){background:#17a2b8}
+.toolbar button:nth-child(2){background:#28a745}
+.toolbar button:nth-child(3){background:#ffc107;color:#333}
+.toolbar button:nth-child(4){background:#fd7e14}
+.toolbar button:nth-child(5){background:#6f42c1}
+.toolbar button:nth-child(6){background:#20c997}
+.toolbar button:nth-child(7){background:#dc3545}
+
+#list{overflow-x:auto;padding:10px}
+#list table{width:100%;table-layout:auto}
+#list table th,#list table td{white-space:nowrap}
+#list table th:last-child,#list table td:last-child{position:sticky;right:0;background:#fff;width:70px;min-width:70px}
+#list table td:last-child button{width:100%;padding:6px 0;font-size:16px}
+#list table tfoot td{position:sticky;bottom:0;background:#fff;font-weight:bold;border-top:2px solid #007bff;font-size:14px;z-index:2}
+
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:999}
+.modal{background:#fff;padding:10px;border-radius:10px;width:92%;max-width:420px;max-height:88vh;overflow-y:auto;border:1px solid #007bff}
+.modal h4{margin:5px 0 10px;font-size:17px;text-align:center;color:#007bff}
+.form-group{margin-bottom:8px}
+.form-group label{font-size:13px;color:#666;display:block;margin-bottom:3px}
+.form-group input,.form-group select{width:100%;padding:9px;box-sizing:border-box;border:1px solid #ddd;border-radius:4px;font-size:16px}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#007bff;box-shadow:0 0 0 2px rgba(0,123,255,.2)}
+#previewImg{max-width:100%;width:auto;max-height:140px;object-fit:contain;margin-bottom:8px;border-radius:6px;border:1px solid #ddd;display:block;margin-left:auto;margin-right:auto}
+.modal button[onclick="saveRecord()"]{width:100%;padding:14px 16px;margin-top:8px;background:linear-gradient(180deg,#28a745,#fd7e14);border:none;border-radius:10px;color:#fff;font-size:18px;font-weight:bold;box-shadow:0 4px 10px rgba(40,167,69,.35)}
+.modal button[onclick="saveRecord()"]:active{transform:scale(0.98)}
+
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;background:#fff}
+th,td{border:1px solid #ddd;padding:6px;text-align:center}
+th{background:#f2f2f2}
+.thumbnail{width:50px;height:50px;object-fit:cover;border-radius:4px;cursor:pointer}
+
+/* 导出子菜单 */
+#exportMenu{
+  display:none;
+  position:fixed;
+  bottom:110px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#222;
+  border-radius:12px;
+  padding:6px 0;
+  z-index:9999;
+  min-width:180px;
+  box-shadow:0 8px 30px rgba(0,0,0,.45);
+}
+#exportMenu div{
+  padding:14px 18px;
+  color:#fff;
+  font-size:15px;
+}
+#exportMenu div:active{
+  background:#444;
+}
+</style>
+</head>
+
+<body>
+<h3>📦 光子盘点</h3>
+
+<div id="cameraWrap">
+  <video id="video" autoplay playsinline></video>
+  <div class="focus-frame"></div>
+  <button id="captureBtn">📸</button>
+</div>
+
+<div class="toolbar">
+  <button onclick="rotate()">🔄 旋转</button>
+  <button id="toggleListBtn" onclick="toggleList()">📋 清单</button>
+  <button onclick="createBackup()">📥 备份</button>
+  <button onclick="toggleExportMenu()">📤 导出</button>
+  <button onclick="openRestoreModal()">♻️ 恢复</button>
+  <button onclick="location.href='https://guangziv.github.io/Inventory/'">🔄 最新版</button>
+  <button onclick="clearAll()">🗑️ 清空</button>
+</div>
+
+<div id="exportMenu">
+  <div onclick="exportPackageLegacy()">📦 导出数据包</div>
+  <div onclick="exportPackageWorker()">📷 导出带图 Excel</div>
+</div>
+
+<div class="modal-mask" id="formModal">
+  <div class="modal">
+    <h4>商品信息录入</h4>
+    <img id="previewImg">
+    <div class="form-group"><label>产品名称</label><input id="inp_name"></div>
+    <div class="form-group">
+      <label>产品类别</label>
+      <select id="inp_category">
+        <option value="床架">床架</option>
+        <option value="床垫">床垫</option>
+        <option value="床头柜">床头柜</option>
+        <option value="沙发">沙发</option>
+        <option value="小件">小件</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>规格</label>
+      <select id="inp_spec">
+        <option value="1.8*2.0">1.8 × 2.0</option>
+        <option value="1.5*2.0">1.5 × 2.0</option>
+        <option value="custom">定制</option>
+      </select>
+    </div>
+    <div class="form-group" id="customSpecGroup" style="display:none;">
+      <label>自定义规格</label>
+      <input id="inp_custom_spec">
+    </div>
+    <div class="form-group"><label>颜色</label><input id="inp_color"></div>
+    <div class="form-group"><label>数量</label><input id="inp_qty" type="number" value="1"></div>
+    <div class="form-group"><label>备注</label><input id="inp_note"></div>
+    <button onclick="saveRecord()">✅ 保存</button>
+  </div>
+</div>
+
+<div class="modal-mask" id="restoreModal">
+  <div class="modal">
+    <h4>恢复备份</h4>
+    <div id="backupListContainer" style="max-height:300px;overflow-y:auto;"></div>
+    <button onclick="closeRestoreModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px;">关闭</button>
+  </div>
+</div>
+
+<div class="modal-mask" id="imgModal" onclick="this.style.display='none'">
+  <img id="bigImg">
+</div>
+
+<div id="list"></div>
+
+<script>
+/* ===== IndexedDB 存储层 ===== */
+const DB_NAME = "PhotonInventoryDB";
+const DB_VERSION = 1;
+const STORE_RECORDS = "records";
+const STORE_BACKUPS = "backups";
+
+let records = [];
+let dbReady = false;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_RECORDS)) {
+        db.createObjectStore(STORE_RECORDS, { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(STORE_BACKUPS)) {
+        db.createObjectStore(STORE_BACKUPS, { keyPath: "key" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function initDB() {
+  const db = await openDB();
+  dbReady = true;
+  await loadRecords(db);
+}
+
+async function loadRecords(db) {
+  return new Promise(resolve => {
+    db.transaction(STORE_RECORDS, "readonly")
+      .objectStore(STORE_RECORDS)
+      .getAll().onsuccess = e => {
+        records = e.target.result || [];
+        resolve();
+      };
+  });
+}
+
+function withDB(fn) {
+  return async (...args) => {
+    if (!dbReady) await initDB();
+    const db = await openDB();
+    return fn(db, ...args);
+  };
+}
+
+/* ===== 基础变量 ===== */
+let tempImage = "", scale = 1, offsetX = 0, offsetY = 0, rotation = 0, listVisible = false;
+
+initDB();
+
+/* ===== 摄像头 ===== */
+const video = document.getElementById("video");
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment", width: { ideal: 1280 } }
+}).then(s => video.srcObject = s);
+
+function applyTransform(){
+  video.style.transform = `translate(${offsetX}px,${offsetY}px) scale(${scale}) rotate(${rotation}deg)`;
+}
+
+document.getElementById("cameraWrap").addEventListener("pointermove", e=>{
+  offsetX += e.clientX - (e.clientX - offsetX);
+  offsetY += e.clientY - (e.clientY - offsetY);
+  requestAnimationFrame(applyTransform);
+});
+
+function rotate(){
+  rotation = (rotation + 90) % 360;
+  requestAnimationFrame(applyTransform);
+}
+
+document.getElementById("captureBtn").onpointerdown = function(e){
+  e.preventDefault();
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  ctx.translate(c.width/2, c.height/2);
+  ctx.rotate(rotation * Math.PI / 180);
+  ctx.drawImage(video, -video.videoWidth/2, -video.videoHeight/2);
+  tempImage = c.toDataURL("image/jpeg", 0.65);
+  document.getElementById("previewImg").src = tempImage;
+  document.getElementById("formModal").style.display = "flex";
+};
+
+/* ===== 表单 ===== */
+document.getElementById("inp_category").onchange = function(){
+  document.getElementById("customSpecGroup").style.display =
+    ["床头柜","沙发","小件"].includes(this.value) ? "block" : "none";
+};
+
+/* ===== 数据保存 ===== */
+const saveRecord = withDB(async function(db){
+  const rec = {
+    time: new Date().toLocaleString(),
+    name: document.getElementById("inp_name").value.trim(),
+    category: document.getElementById("inp_category").value,
+    spec: document.getElementById("inp_spec").value,
+    color: document.getElementById("inp_color").value.trim(),
+    qty: document.getElementById("inp_qty").value,
+    note: document.getElementById("inp_note").value.trim(),
+    image: tempImage
+  };
+  await db.transaction(STORE_RECORDS, "readwrite")
+    .objectStore(STORE_RECORDS)
+    .put(rec);
+  await loadRecords(db);
+  document.getElementById("formModal").style.display = "none";
+  alert("保存成功！");
+});
+
+/* ===== 列表 ===== */
+function toggleList(){
+  listVisible = !listVisible;
+  document.getElementById("list").style.display = listVisible ? "block" : "none";
+  if(listVisible) renderList();
+}
+
+function renderList(){
+  let h = "<table><tr><th>序号</th><th>时间</th><th>类别</th><th>图片</th><th>名称</th><th>规格</th><th>颜色</th><th>数量</th><th>备注</th><th>操作</th></tr>";
+  records.forEach((r,i)=>{
+    h += `<tr>
+      <td>${i+1}</td>
+      <td>${r.time}</td>
+      <td>${r.category}</td>
+      <td><img src="${r.image}" class="thumbnail"></td>
+      <td>${r.name}</td>
+      <td>${r.spec}</td>
+      <td>${r.color}</td>
+      <td>${r.qty}</td>
+      <td>${r.note}</td>
+      <td><button onclick="deleteRecord(${i})">🗑️</button></td>
+    </tr>`;
+  });
+  document.getElementById("list").innerHTML = h;
+}
+
+/* ===== 导出菜单 ===== */
+function toggleExportMenu(){
+  const m = document.getElementById("exportMenu");
+  m.style.display = m.style.display === "block" ? "none" : "block";
+}
+
+/* ===== 原 ZIP 导出（保留） ===== */
+async function exportPackageLegacy(){
+  if(!records.length){alert("❌ 暂无数据");return;}
+  const z = new JSZip();
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet([]);
+  records.forEach((r,i)=>{
+    XLSX.utils.sheet_add_json(ws, [{序号:i+1,name:r.name}], {origin:-1});
+  });
+  XLSX.utils.book_append_sheet(wb, ws, "盘点数据");
+  z.file("data.xlsx", XLSX.write(wb, {type:"array"}), {binary:true});
+  saveAs(await z.generateAsync({type:"blob"}), "光子盘点.zip");
+}
+
+/* ===== Web Worker 带图导出（修复版） ===== */
+async function exportPackageWorker(){
+  if(!records.length){alert("❌ 暂无数据");return;}
+  const btn = document.querySelector("button[onclick*='toggleExportMenu']");
+  btn.innerText = "⏳ 生成中";
+  btn.disabled = true;
+  try {
+    const worker = new Worker("exportWorker.js");
+    worker.postMessage({records});
+    worker.onmessage = e => {
+      saveAs(new Blob([e.data]), "光子盘点_带图.xlsx");
+      alert("✅ 导出成功！");
+      worker.terminate();
+      btn.innerText = "📤 导出";
+      btn.disabled = false;
+      document.getElementById("exportMenu").style.display = "none";
+    };
+    worker.onerror = err => {
+      console.error(err);
+      alert("❌ 导出失败");
+      btn.innerText = "📤 导出";
+      btn.disabled = false;
+    };
+  } catch(err){
+    alert("❌ 浏览器不支持 Web Worker");
+  }
+}
+</script>
+</body>
+</html>
