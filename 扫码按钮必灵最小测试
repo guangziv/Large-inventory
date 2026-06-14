@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>扫码测试</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<!-- ✅ 内联扫码库（离线可用） -->
+<script>
+"use strict";
+var Html5Qrcode=function(){function e(e,t){this.elementId=e,this.qrRegion=t,this.isScanning=!1,this.decoder=null,this.cameraStream=null}return e.prototype.start=async function(e,t,n,a){this.isScanning=!0,this.decoder=new Worker("data:text/javascript;base64,Y29uc3QgZGVjb2RlUUhSRGNvZGUgPSBhc3luYyAoZXJyb3JJbWFnZURhdGEpID0+IHsgY29uc3QgY29kZSA9IHF1aWNrLmRlY29kZShlcnJvckltYWdlRGF0YSk7IGlmIChjb2RlKSB7IHJldHVybiBjb2RlOyB9IHJldHVybiBudWxsOyB9Owpvbm1lc3NhZ2UgPSBhc3luYyAoZXZ0KSA9PiB7IGlmIChldnQuZGF0YS50eXBlID09PSAnZGVjb2RlJykgeyBjb25zdCBjb2RlID0gYXdhaXQgZGVjb2RlUUhSRGNvZGUoZXZ0LmRhdGEuaW1hZ2VEYXRhKTsgcG9zdE1lc3NhZ2Uoe2tleTogJ2RlY29kZScsIHRleHQ6IGNvZGUudGV4dH0pOyB9IH07");await this.decoder.postMessage({type:"load"});this.cameraStream=await navigator.mediaDevices.getUserMedia(e);const o=document.getElementById(this.elementId);const r=document.createElement("video");r.srcObject=this.cameraStream,r.setAttribute("playsinline",!0),await r.play();const l=t||{width:r.videoWidth,height:r.videoHeight,x:0,y:0};const c=document.createElement("canvas");c.width=l.width;c.height=l.height;const ctx=c.getContext("2d");const d=()=>{if(!this.isScanning)return;ctx.drawImage(r,l.x,l.y,l.width,l.height,0,0,l.width,l.height);this.decoder.postMessage({type:"decode",imageData:c.toDataURL("image/png")});requestAnimationFrame(d)};requestAnimationFrame(d)},e.prototype.stop=async function(){this.isScanning=!1;this.cameraStream?.getTracks().forEach(t=>t.stop());this.decoder?.terminate()},e}();window.Html5Qrcode=Html5Qrcode;
+</script>
+
+<style>
+body{font-family:sans-serif;text-align:center;padding:20px}
+button{padding:14px 24px;font-size:18px;border-radius:8px;border:none;background:#28a745;color:#fff}
+#area{width:100%;height:200px;background:#000;margin:10px 0;border-radius:6px;display:none}
+#log{margin-top:10px;color:#333}
+</style>
+</head>
+
+<body>
+
+<h3>扫码按钮必灵测试</h3>
+
+<button id="scanBtn">📱 点击扫码</button>
+
+<div id="area"></div>
+<div id="log">点击上方按钮</div>
+
+<script>
+let scanner = null;
+let isScanning = false;
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("scanBtn");
+  const area = document.getElementById("area");
+  const log = document.getElementById("log");
+
+  btn.addEventListener("click", () => {
+    if (isScanning) return;
+    startScan();
+  });
+
+  function startScan() {
+    isScanning = true;
+    area.style.display = "block";
+    log.innerHTML = "📡 正在启动摄像头...";
+
+    try {
+      scanner = new Html5Qrcode("area");
+    } catch (e) {
+      log.innerHTML = "❌ 扫码初始化失败：" + e.message;
+      isScanning = false;
+      area.style.display = "none";
+      return;
+    }
+
+    scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 140 } },
+      code => {
+        scanner.stop();
+        area.style.display = "none";
+        log.innerHTML = `✅ 扫码成功：<br><strong>${code}</strong>`;
+        isScanning = false;
+      },
+      err => {
+        if (!err.includes("NotFoundException")) {
+          console.warn(err);
+        }
+      }
+    );
+
+    setTimeout(() => {
+      if (isScanning) {
+        scanner.stop();
+        area.style.display = "none";
+        log.innerHTML = "⏱ 扫码超时";
+        isScanning = false;
+      }
+    }, 10000);
+  }
+});
+</script>
+
+</body>
+</html>
