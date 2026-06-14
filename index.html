@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>手机扫码器 - 二维码扫描</title>
+    <title>手机扫码器 - 点击启动摄像头</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none; /* 避免移动端长按菜单干扰 */
+            user-select: none;
         }
 
         body {
@@ -19,10 +19,8 @@
             height: 100vh;
             width: 100%;
             position: fixed;
-            touch-action: none; /* 优化触摸操作，避免页面滚动干扰扫描区 */
         }
 
-        /* 主容器：全屏相机预览区 */
         .scanner-container {
             position: relative;
             width: 100%;
@@ -31,7 +29,6 @@
             background: #000;
         }
 
-        /* 视频元素: 撑满全屏，保持比例覆盖 */
         #video {
             position: absolute;
             top: 0;
@@ -39,11 +36,62 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* 前置摄像头镜像效果，视觉更自然，不影响识别 */
-            font-size: 0;
+            transform: scaleX(-1);
         }
 
-        /* 扫描框遮罩层: 半透明黑色背景+透明扫描区 */
+        /* 未启动时的引导界面 */
+        .start-guide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .guide-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .guide-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .guide-desc {
+            color: #aaa;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 32px;
+            padding: 0 40px;
+        }
+
+        .big-start-btn {
+            background: linear-gradient(135deg, #00ccaa, #00aa88);
+            border: none;
+            color: white;
+            padding: 14px 40px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 20px rgba(0,200,150,0.4);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .big-start-btn:active {
+            transform: scale(0.96);
+        }
+
         .overlay {
             position: absolute;
             top: 0;
@@ -51,10 +99,9 @@
             width: 100%;
             height: 100%;
             z-index: 10;
-            pointer-events: none; /* 让触摸穿透到视频，但保留视觉指引 */
+            pointer-events: none;
         }
 
-        /* 扫描框区域视觉设计 */
         .scan-area {
             position: absolute;
             top: 50%;
@@ -66,11 +113,9 @@
             max-height: 320px;
             border-radius: 24px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(2px);
             border: 2px solid rgba(255, 255, 255, 0.8);
         }
 
-        /* 扫描框四角装饰 */
         .scan-area::before,
         .scan-area::after,
         .scan-corner-top-right,
@@ -116,7 +161,6 @@
             border-radius: 0 0 6px 0;
         }
 
-        /* 动态扫描线 */
         .scan-line {
             position: absolute;
             top: 0;
@@ -130,18 +174,11 @@
         }
 
         @keyframes scanMove {
-            0% {
-                top: 0%;
-            }
-            50% {
-                top: 100%;
-            }
-            100% {
-                top: 0%;
-            }
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
         }
 
-        /* 提示文字 + 控制栏 */
         .info-panel {
             position: absolute;
             bottom: 30px;
@@ -158,9 +195,8 @@
             color: white;
             padding: 10px 20px;
             border-radius: 48px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
-            letter-spacing: 1px;
             display: inline-block;
             margin-bottom: 12px;
             border: 0.5px solid rgba(255,255,255,0.3);
@@ -182,12 +218,9 @@
             color: white;
             padding: 10px 20px;
             border-radius: 40px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            letter-spacing: 1px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-            transition: 0.2s;
-            backdrop-filter: blur(4px);
             border: 0.5px solid rgba(255,255,240,0.3);
             cursor: pointer;
         }
@@ -210,8 +243,6 @@
             font-size: 14px;
             text-align: center;
             z-index: 25;
-            transition: opacity 0.25s ease;
-            pointer-events: none;
             word-break: break-all;
             border: 1px solid #00ffcc66;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
@@ -234,7 +265,6 @@
             display: none;
         }
 
-        /* 权限失败样式 */
         .error-msg {
             position: absolute;
             top: 50%;
@@ -247,26 +277,24 @@
             border-radius: 32px;
             text-align: center;
             color: white;
-            z-index: 30;
+            z-index: 35;
             font-weight: 500;
             border: 1px solid #ffaaaa;
-        }
-
-        .retry-btn {
-            background: white;
-            color: #0f172a;
-            margin-top: 16px;
-            padding: 8px 20px;
-            border: none;
-            border-radius: 40px;
-            font-weight: bold;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
 <div class="scanner-container">
     <video id="video" autoplay playsinline muted></video>
+    
+    <!-- 启动引导界面 -->
+    <div id="startGuide" class="start-guide">
+        <div class="guide-icon">📷</div>
+        <div class="guide-title">扫码助手</div>
+        <div class="guide-desc">点击下方按钮，允许相机权限后即可扫描二维码</div>
+        <button class="big-start-btn" id="guideStartBtn">开启扫描</button>
+    </div>
+
     <div class="overlay">
         <div class="scan-area">
             <div class="scan-line"></div>
@@ -274,45 +302,42 @@
             <div class="scan-corner-bottom-left"></div>
         </div>
     </div>
+    
     <div class="info-panel">
-        <div class="status-text" id="statusMsg">⚡ 对准二维码自动扫描</div>
+        <div class="status-text" id="statusMsg">⚡ 点击开启扫描</div>
         <div class="button-group">
-            <button class="ctrl-btn" id="startScanBtn">▶ 开启扫描</button>
-            <button class="ctrl-btn" id="switchCamBtn">🔄 切换镜头</button>
+            <button class="ctrl-btn" id="switchCamBtn" style="opacity:0.6;">🔄 切换镜头</button>
         </div>
     </div>
+    
     <div id="resultToast" class="result-toast hidden">
         <div id="toastContent">扫描结果</div>
         <div class="close-toast" id="closeToastBtn">关闭</div>
     </div>
 </div>
 
-<!-- 引入 instascan 轻量级扫码库（手机端稳定） -->
 <script src="https://cdn.jsdelivr.net/npm/instascan@1.0.0/instascan.min.js"></script>
 
 <script>
     (function() {
-        // DOM 元素
         const videoElement = document.getElementById('video');
         const statusSpan = document.getElementById('statusMsg');
-        const startBtn = document.getElementById('startScanBtn');
+        const startGuide = document.getElementById('startGuide');
+        const guideStartBtn = document.getElementById('guideStartBtn');
         const switchCamBtn = document.getElementById('switchCamBtn');
         const resultToastDiv = document.getElementById('resultToast');
         const toastContentSpan = document.getElementById('toastContent');
         const closeToastBtn = document.getElementById('closeToastBtn');
 
-        // Instascan 核心对象
         let scanner = null;
-        let activeCamera = null;       // 当前激活的摄像头id
-        let allCameras = [];            // 所有可用摄像头列表
-        let isScanning = false;          // 扫描器是否正在运行
+        let activeCamera = null;
+        let allCameras = [];
+        let isScanning = false;
         
-        // 去重防抖: 避免短时间内同一个二维码反复弹窗
         let lastScannedData = '';
         let lastScanTime = 0;
         const SCAN_DEBOUNCE_MS = 2000;
 
-        // 辅助函数: 显示状态 (文字)
         function setStatus(text, isError = false) {
             statusSpan.innerText = text;
             if (isError) {
@@ -322,57 +347,41 @@
             }
         }
 
-        // 显示扫描结果 Toast
         function showResult(content) {
-            // 去掉可能的前后缀空格
             const rawText = (content || '').trim();
             if (!rawText) return;
 
-            // 防重复 (同一内容短时间内只提醒一次)
             const now = Date.now();
             if (lastScannedData === rawText && (now - lastScanTime) < SCAN_DEBOUNCE_MS) {
-                // 重复内容不打扰，但更新最后时间? 保留第一次即可
                 return;
             }
             lastScannedData = rawText;
             lastScanTime = now;
 
-            // 显示 toast
             toastContentSpan.innerText = rawText;
             resultToastDiv.classList.remove('hidden');
-            // 可选震动（部分手机支持）
+            
             if (window.navigator && window.navigator.vibrate) {
                 window.navigator.vibrate(200);
             }
             setStatus(`✅ 已扫描: ${rawText.substring(0, 18)}${rawText.length > 18 ? '…' : ''}`, false);
-            // 也可以选择自动复制到剪贴板（提升体验）
+            
             if (navigator.clipboard && rawText) {
-                navigator.clipboard.writeText(rawText).then(() => {
-                    // 静默复制，可以轻微提示但不干扰
-                    console.log('结果已复制到剪贴板');
-                }).catch(e => console.warn('复制失败', e));
+                navigator.clipboard.writeText(rawText).catch(e => console.warn('复制失败', e));
             }
         }
 
-        // 隐藏结果面板
         function hideToast() {
             resultToastDiv.classList.add('hidden');
         }
 
-        // 停止当前扫描器并释放资源 (核心: 关闭视频轨道)
         async function stopScanner() {
-            if (scanner) {
+            if (scanner && isScanning) {
                 try {
-                    // 如果已经在扫描，停止
-                    if (isScanning) {
-                        await scanner.stop();
-                        isScanning = false;
-                    }
-                } catch (e) {
-                    console.warn("停止扫描出错:", e);
-                }
+                    await scanner.stop();
+                } catch(e) {}
+                isScanning = false;
             }
-            // 额外确保视频元素不播放释放资源
             if (videoElement && videoElement.srcObject) {
                 const tracks = videoElement.srcObject.getTracks();
                 tracks.forEach(track => track.stop());
@@ -380,36 +389,32 @@
             }
         }
 
-        // 初始化 Instascan 并开始使用指定摄像头
-        async function initAndStart(cameraId = null) {
+        async function startScanning(cameraId = null) {
             try {
-                // 停止任何现有扫描/视频流
+                setStatus("正在请求相机权限...");
+                
+                // 停止之前的
                 await stopScanner();
-
-                // 如果 scanner 未创建则创建新实例
+                
                 if (!scanner) {
                     scanner = new Instascan.Scanner({
                         video: videoElement,
-                        mirror: true,          // 镜像让前置摄像头展示更自然，不影响解码
-                        backgroundScan: false,  // 手机端降低开销，仅前台扫描
-                        continuous: true,       // 连续扫描模式
-                        refractoryPeriod: 800,   // 扫描冷却期 (毫秒)
-                        scanPeriod: 1           // 扫描间隔极短提升速度
+                        mirror: true,
+                        backgroundScan: false,
+                        continuous: true,
+                        refractoryPeriod: 800,
+                        scanPeriod: 1
+                    });
+                    scanner.addListener('scan', function(content) {
+                        if (content && typeof content === 'string') {
+                            showResult(content);
+                        }
                     });
                 }
-
-                // 绑定扫描事件
-                scanner.addListener('scan', function(content) {
-                    // Instascan 扫描到的内容
-                    if (content && typeof content === 'string') {
-                        showResult(content);
-                    }
-                });
-
-                // 获取摄像头列表并启动指定摄像头
+                
                 let cameras = await Instascan.Camera.getCameras();
                 if (!cameras || cameras.length === 0) {
-                    throw new Error('未检测到任何摄像头，请确保手机有摄像头并且已授予权限');
+                    throw new Error('未检测到摄像头');
                 }
                 allCameras = cameras;
                 
@@ -417,182 +422,113 @@
                 if (cameraId) {
                     targetCamera = cameras.find(cam => cam.id === cameraId);
                 }
-                if (!targetCamera && cameras.length > 0) {
-                    // 默认优先选用后置摄像头 (环境摄像头)
+                if (!targetCamera) {
                     targetCamera = cameras.find(cam => cam.name && (cam.name.toLowerCase().includes('back') || cam.name.toLowerCase().includes('environment')));
                     if (!targetCamera) targetCamera = cameras[0];
                 }
-                if (!targetCamera) {
-                    throw new Error('无法选取合适的摄像头');
-                }
-                activeCamera = targetCamera.id;
-                setStatus(`📷 正在启动摄像头...`);
                 
-                // 开始扫描
+                activeCamera = targetCamera.id;
                 await scanner.start(targetCamera);
                 isScanning = true;
-                setStatus(`🔍 扫描中 · 对准二维码`, false);
+                
+                // 启用切换按钮
+                switchCamBtn.style.opacity = "1";
+                setStatus("🔍 扫描中 · 对准二维码");
+                
+                // 隐藏引导界面
+                startGuide.classList.add('hidden');
+                
             } catch (err) {
-                console.error("扫码初始化失败: ", err);
-                setStatus(`❌ 相机错误: ${err.message || '权限或设备问题'}`, true);
-                // 显示友好的错误卡片
-                showPermissionError(err);
-                isScanning = false;
+                console.error(err);
+                setStatus(`❌ 相机错误: ${err.message || '请检查权限'}`, true);
+                throw err;
             }
         }
 
-        // 切换摄像头逻辑
         async function switchCamera() {
-            if (!allCameras || allCameras.length < 2) {
-                setStatus("📱 只有单个摄像头，无法切换", false);
-                // 2秒后恢复状态
+            if (!isScanning) {
+                setStatus("请先开启扫描", false);
                 setTimeout(() => {
-                    if (isScanning) setStatus(`🔍 扫描中 · 对准二维码`, false);
-                    else setStatus(`⚡ 对准二维码自动扫描`, false);
+                    if (!isScanning) setStatus("⚡ 点击开启扫描");
                 }, 1500);
                 return;
             }
-            // 找到当前摄像头的下一个索引
+            
+            if (!allCameras || allCameras.length < 2) {
+                setStatus("📱 只有一个摄像头", false);
+                setTimeout(() => {
+                    if (isScanning) setStatus("🔍 扫描中 · 对准二维码");
+                }, 1200);
+                return;
+            }
+            
             let currentIndex = allCameras.findIndex(cam => cam.id === activeCamera);
             let nextIndex = (currentIndex + 1) % allCameras.length;
             const nextCam = allCameras[nextIndex];
             if (!nextCam) return;
-            // 重新初始化并启动新摄像头
-            setStatus(`🔄 切换摄像头中...`);
+            
+            setStatus("🔄 切换摄像头中...");
             try {
-                await initAndStart(nextCam.id);
+                await stopScanner();
+                await startScanning(nextCam.id);
             } catch (e) {
-                setStatus(`切换失败，保持原摄像头`, true);
-                console.error(e);
+                setStatus("切换失败", true);
+                startGuide.classList.remove('hidden');
+                isScanning = false;
             }
         }
 
-        // 显示权限错误帮助界面（动态创建但不破坏结构，移除已有error元素）
-        function showPermissionError(errMsgObj) {
-            let existingError = document.querySelector('.error-msg');
-            if (existingError) existingError.remove();
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-msg';
-            errorDiv.innerHTML = `
-                <div>⚠️ 无法访问摄像头</div>
-                <div style="font-size:13px; margin-top:8px;">${errMsgObj.message || '请确保已授予相机权限，并刷新页面重试'}</div>
-                <button class="retry-btn" id="manualRetryBtn">重新请求权限</button>
-            `;
-            document.querySelector('.scanner-container').appendChild(errorDiv);
-            const retryBtn = document.getElementById('manualRetryBtn');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', async () => {
-                    errorDiv.remove();
-                    setStatus("🔄 重新请求权限...");
-                    try {
-                        await initAndStart();
-                    } catch (e) {
-                        setStatus("再次失败，请检查浏览器相机设置", true);
-                        setTimeout(() => {
-                            if (!isScanning) setStatus("请刷新页面并允许相机权限", true);
-                        }, 2000);
-                    }
-                });
-            }
-        }
-
-        // 手动开启扫描（如果已经停止或者未启动时）
-        async function manualStart() {
-            // 如果已经在扫描，就不重复初始化
-            if (isScanning && scanner && videoElement.srcObject) {
-                setStatus("✅ 扫描器已在运行中", false);
-                setTimeout(() => {
-                    if (isScanning) setStatus("🔍 扫描中 · 对准二维码", false);
-                }, 1200);
-                return;
-            }
-            // 否则重新初始化
-            setStatus("⚡ 启动相机...");
+        // 主要启动入口：用户点击后请求权限
+        async function onUserStart() {
             try {
-                await initAndStart(activeCamera);
+                await startScanning();
             } catch (err) {
-                console.error(err);
-                setStatus("启动失败，请手动授权相机", true);
+                // 显示错误让用户重试
+                startGuide.classList.remove('hidden');
+                const existingError = document.querySelector('.error-msg');
+                if (existingError) existingError.remove();
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-msg';
+                errorDiv.innerHTML = `
+                    <div>⚠️ 无法访问摄像头</div>
+                    <div style="font-size:13px; margin-top:8px;">${err.message || '请确保已授予相机权限'}</div>
+                    <button class="close-toast" id="errorRetryBtn" style="margin-top:16px; background:#fff; color:#000;">重试</button>
+                `;
+                document.querySelector('.scanner-container').appendChild(errorDiv);
+                const retryBtn = document.getElementById('errorRetryBtn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', () => {
+                        errorDiv.remove();
+                        onUserStart();
+                    });
+                }
             }
         }
 
-        // 关闭全局toast点击事件
-        closeToastBtn.addEventListener('click', hideToast);
-        // 点击空白区域也可以关闭toast（可选），但为了避免干扰，只通过关闭按钮处理
-        resultToastDiv.addEventListener('click', (e) => {
-            if (e.target === resultToastDiv) {
-                hideToast();
-            }
-        });
-
-        // 绑定按钮交互
-        startBtn.addEventListener('click', manualStart);
+        // 事件绑定
+        guideStartBtn.addEventListener('click', onUserStart);
         switchCamBtn.addEventListener('click', switchCamera);
-
-        // 页面加载自动尝试启动扫描 (移动端需要用户交互？ 实际上现代浏览器允许 autoplay 且 getUserMedia 需要用户手势？)
-        // 但为了符合手机浏览器策略（iOS 要求用户交互才能播放带音频视频，但我们 muted 且无声音，同时 getUserMedia 某些版本要求用户操作，
-        // 最好首次加载尝试调用权限但是需要由点击触发？实际上iOS WebView 中 video.play() 需用户交互，但 getUserMedia 可以请求许可
-        // 但某些浏览器限制自动播放视频流，但我们可以加一个『轻触屏幕启动』友好提示。但为了使体验更好，检测初始自动初始化，若被浏览器阻截给出提示。
-        // 方案：自动调用，如果因为安全策略失败则显示消息，用户点击『开启扫描』也能再次调用.
-        async function autoLoad() {
-            // 尝试自动初始化，但可能因为 strict 策略导致失败，但不影响后续手动点击
-            try {
-                await initAndStart();
-            } catch (e) {
-                console.warn("自动初始化被浏览器策略阻止:", e);
-                setStatus("📱 点击『开启扫描』授权相机", false);
-                // 移除可能的错误卡片干扰，提示轻轻点击启动
-                let errBox = document.querySelector('.error-msg');
-                if (errBox && e.message.includes('NotFound')) {
-                    // 保持不动
-                } else if (e.message.includes('Permission')) {
-                    setStatus("请允许相机权限后点击开启扫描", true);
-                } else {
-                    setStatus("点击下方按钮开始扫码", false);
-                }
-            }
-        }
-
-        // 额外保证页面可见性恢复时如果扫描停止处理（不自动恢复，留给用户按钮）
+        closeToastBtn.addEventListener('click', hideToast);
+        
+        // 可选: 点击 toast 背景关闭
+        resultToastDiv.addEventListener('click', (e) => {
+            if (e.target === resultToastDiv) hideToast();
+        });
+        
+        // 防止页面滚动干扰
+        document.body.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.ctrl-btn') || e.target.closest('.close-toast')) return;
+            e.preventDefault();
+        }, { passive: false });
+        
+        // 页面可见性变化时如果扫描停止，只是提示，需要用户点引导按钮（但引导已被隐藏，需要特殊处理）
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // 页面隐藏时可选择暂停扫描，不占资源，但移动端可能已停止，无需额外
-                if (scanner && isScanning) {
-                    // 暂不停，只记录
-                }
-            } else {
-                // 恢复可见时如果扫描器不在运行或者视频流没了就更新状态
-                if (!isScanning && scanner) {
-                    setStatus("恢复后请点击开始扫描", false);
-                } else if (isScanning && (!videoElement.srcObject || videoElement.srcObject.getTracks().length === 0)) {
-                    // 流意外丢失，尝试重新开始但是不自动，显示提示
-                    setStatus("相机流中断，点“开启扫描”恢复", true);
-                    isScanning = false;
-                }
+            if (!document.hidden && !isScanning && startGuide.classList.contains('hidden')) {
+                // 异常情况：扫描停止了但界面显示扫描中
+                setStatus("相机已断开，请刷新重试", true);
             }
         });
-
-        // 启动自动加载
-        autoLoad();
-
-        // 补充对于摄像头切换时如果当前扫描停止的状态，避免重复报错
-        window.addEventListener('load', () => {
-            // 针对移动端，确保视口适应，避免缩放
-            document.body.addEventListener('touchmove', function(e) {
-                // 防止用户在扫描区域拖动页面，但不影响滚动
-                if (e.target.closest('.ctrl-btn')) return;
-                e.preventDefault();
-            }, { passive: false });
-        });
-        
-        // 优雅处理控制按钮触摸优化
-        function handleBtnTouch(e) {
-            // 仅改善移动端触感
-        }
-        startBtn.addEventListener('touchstart', handleBtnTouch);
-        switchCamBtn.addEventListener('touchstart', handleBtnTouch);
-        
-        // 增加一个额外的小功能：如果扫描结束后手动复制更好的体验，长按结果可手动复制；由于toast自带内容可选择，也可。
     })();
 </script>
 </body>
