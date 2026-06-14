@@ -5,44 +5,35 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>扫码</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+body{font-family:sans-serif;text-align:center}
+button{padding:12px 24px;font-size:16px}
+#out{padding:12px;word-break:break-all}
+</style>
 </head>
-<body style="margin:0;font-family:sans-serif;text-align:center">
-<div id="r"></div>
-<p id="out" style="padding:12px;word-break:break-all">请允许摄像头权限</p>
+<body>
+
+<h3>扫码</h3>
+<button onclick="start()">允许摄像头并开始扫码</button>
+<div id="r" style="margin-top:12px"></div>
+<p id="out"></p>
 
 <script>
-const out = document.getElementById("out");
+function start(){
+  document.getElementById("out").innerText="正在请求摄像头权限...";
 
-const scanner = new Html5QrcodeScanner(
-  "r",
-  { fps: 10, qrbox: { width: 250, height: 250 } },
-  false
-);
+  const scanner = new Html5QrcodeScanner(
+    "r",
+    { fps:10,qrbox:{width:250,height:250} },
+    false
+  );
 
-scanner.render(
-  code => out.innerText = "扫码结果：" + code,
-  err => {
-    if (err.includes("NotAllowedError")) {
-      out.innerText = "请允许摄像头权限才能扫码";
-    }
-  }
-);
-
-// 中文按钮替换
-setTimeout(() => {
-  const map = {
-    "Scan an Image File": "扫描图片",
-    "Camera Scan": "摄像头扫码",
-    "Request Camera Permissions": "请求摄像头权限",
-    "Start Scanning": "开始扫码",
-    "Stop Scanning": "停止扫码"
-  };
-  Object.keys(map).forEach(k => {
-    document.querySelectorAll("*").forEach(el => {
-      if (el.innerText === k) el.innerText = map[k];
-    });
-  });
-}, 300);
+  scanner.render(
+    code=>document.getElementById("out").innerText="扫码结果："+code,
+    err=>document.getElementById("out").innerText="请允许摄像头权限才能扫码"
+  );
+}
 </script>
+
 </body>
 </html>
