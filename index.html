@@ -1,244 +1,48 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>极简扫码 - 手动识别版</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #000;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            font-family: system-ui, sans-serif;
-        }
-        video {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .box {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 260px;
-            height: 260px;
-            border: 2px solid #00ffcc;
-            border-radius: 20px;
-            box-shadow: 0 0 0 999px rgba(0,0,0,0.6);
-            pointer-events: none;
-            z-index: 10;
-        }
-        .scan-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: #00ffcc;
-            animation: move 2s ease-in-out infinite;
-            border-radius: 2px;
-        }
-        @keyframes move {
-            0% { top: 0; }
-            50% { top: calc(100% - 3px); }
-            100% { top: 0; }
-        }
-        .tip {
-            position: fixed;
-            bottom: 100px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            text-align: center;
-            padding: 12px;
-            border-radius: 40px;
-            font-size: 14px;
-            z-index: 20;
-        }
-        .result {
-            position: fixed;
-            bottom: 180px;
-            left: 20px;
-            right: 20px;
-            background: #1a1a2e;
-            color: #00ffcc;
-            padding: 14px;
-            border-radius: 16px;
-            text-align: center;
-            font-size: 14px;
-            word-break: break-all;
-            z-index: 20;
-            border: 1px solid #00ffcc;
-            max-height: 100px;
-            overflow-y: auto;
-        }
-        button {
-            position: fixed;
-            bottom: 30px;
-            left: 20px;
-            right: 20px;
-            background: #00ccaa;
-            border: none;
-            color: #000;
-            padding: 14px;
-            border-radius: 40px;
-            font-weight: bold;
-            font-size: 16px;
-            z-index: 20;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-        .capture-btn {
-            bottom: 100px;
-            background: #ff9800;
-            color: #000;
-        }
-        .hidden { display: none; }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>扫码</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
-<body>
-    <video id="video" autoplay playsinline muted></video>
-    <div class="box">
-        <div class="scan-line"></div>
-    </div>
-    <div class="tip" id="tip">⚡ 点击下方按钮开启相机</div>
-    <div class="result hidden" id="result"></div>
-    <button id="captureBtn" class="capture-btn hidden">📸 点击识别二维码</button>
-    <button id="startBtn">📷 开启扫码</button>
+<body style="margin:0;font-family:sans-serif;text-align:center">
+<div id="r"></div>
+<p id="out" style="padding:12px;word-break:break-all">请允许摄像头权限</p>
 
-    <script>
-        const video = document.getElementById('video');
-        const tip = document.getElementById('tip');
-        const resultDiv = document.getElementById('result');
-        const startBtn = document.getElementById('startBtn');
-        const captureBtn = document.getElementById('captureBtn');
-        
-        let stream = null;
-        let cameraReady = false;
+<script>
+const out = document.getElementById("out");
 
-        // 停止摄像头
-        async function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(t => t.stop());
-                stream = null;
-            }
-            video.srcObject = null;
-            cameraReady = false;
-        }
+const scanner = new Html5QrcodeScanner(
+  "r",
+  { fps: 10, qrbox: { width: 250, height: 250 } },
+  false
+);
 
-        // 启动摄像头
-        async function startCamera() {
-            await stopCamera();
-            tip.innerText = '📷 请求权限中...';
-            
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                video.srcObject = stream;
-                await video.play();
-                tip.innerText = '✅ 相机已开启，点击下方橙色按钮识别二维码';
-                cameraReady = true;
-                startBtn.classList.add('hidden');
-                captureBtn.classList.remove('hidden');
-            } catch (err) {
-                tip.innerText = '❌ 无法访问摄像头，请检查权限后刷新重试';
-                console.error(err);
-            }
-        }
+scanner.render(
+  code => out.innerText = "扫码结果：" + code,
+  err => {
+    if (err.includes("NotAllowedError")) {
+      out.innerText = "请允许摄像头权限才能扫码";
+    }
+  }
+);
 
-        // 从当前视频帧识别二维码
-        function recognizeQR() {
-            if (!cameraReady || !video.videoWidth || !video.videoHeight) {
-                tip.innerText = '⚠️ 相机未就绪，请稍后再点';
-                return;
-            }
-            
-            tip.innerText = '🔍 识别中...';
-            
-            // 创建canvas截取当前帧
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // 可选：只在扫描框区域识别（提高准确率）
-            // 获取扫描框在视频中的相对位置
-            const box = document.querySelector('.box');
-            const boxRect = box.getBoundingClientRect();
-            const videoRect = video.getBoundingClientRect();
-            
-            // 计算扫描框在视频画面中的比例位置
-            const scaleX = canvas.width / videoRect.width;
-            const scaleY = canvas.height / videoRect.height;
-            
-            const cropX = (boxRect.left - videoRect.left) * scaleX;
-            const cropY = (boxRect.top - videoRect.top) * scaleY;
-            const cropW = boxRect.width * scaleX;
-            const cropH = boxRect.height * scaleY;
-            
-            // 只识别扫描框区域
-            const imageData = ctx.getImageData(cropX, cropY, cropW, cropH);
-            const code = jsQR(imageData.data, cropW, cropH, {
-                inversionAttempts: "dontInvert",
-            });
-            
-            if (code && code.data) {
-                // 识别成功
-                resultDiv.innerText = '✅ 识别结果：\n' + code.data;
-                resultDiv.classList.remove('hidden');
-                tip.innerText = '✅ 识别成功！继续扫描请再次点击橙色按钮';
-                
-                // 自动复制
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(code.data).then(() => {
-                        tip.innerText = '✅ 已复制到剪贴板！';
-                    }).catch(() => {});
-                }
-                
-                // 5秒后自动隐藏结果
-                setTimeout(() => {
-                    resultDiv.classList.add('hidden');
-                }, 8000);
-            } else {
-                tip.innerText = '❌ 未识别到二维码，请确保二维码在框内，点击重试';
-                // 3秒后恢复提示
-                setTimeout(() => {
-                    if (cameraReady) tip.innerText = '📸 将二维码对准框内，点击橙色按钮识别';
-                }, 2000);
-            }
-        }
-
-        // 点击开启相机
-        startBtn.onclick = startCamera;
-        
-        // 点击识别按钮
-        captureBtn.onclick = recognizeQR;
-        
-        // 点击结果区域可复制
-        resultDiv.onclick = () => {
-            const text = resultDiv.innerText.replace('✅ 识别结果：\n', '');
-            if (text && navigator.clipboard) {
-                navigator.clipboard.writeText(text);
-                tip.innerText = '📋 已复制到剪贴板！';
-                setTimeout(() => {
-                    if (cameraReady) tip.innerText = '📸 将二维码对准框内，点击橙色按钮识别';
-                }, 1500);
-            }
-        };
-    </script>
+// 中文按钮替换
+setTimeout(() => {
+  const map = {
+    "Scan an Image File": "扫描图片",
+    "Camera Scan": "摄像头扫码",
+    "Request Camera Permissions": "请求摄像头权限",
+    "Start Scanning": "开始扫码",
+    "Stop Scanning": "停止扫码"
+  };
+  Object.keys(map).forEach(k => {
+    document.querySelectorAll("*").forEach(el => {
+      if (el.innerText === k) el.innerText = map[k];
+    });
+  });
+}, 300);
+</script>
 </body>
 </html>
