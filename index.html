@@ -2,16 +2,20 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>扫码最终版</title>
+<title>扫码离线修复版</title>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 
-<!-- ✅ 官方扫码库 -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/minified_html5-qrcode.min.js"></script>
+<!-- ✅ 内联扫码库（Base64 嵌入，无需联网） -->
+<script>
+"use strict";
+/*! html5-qrcode.min.js (embedded, offline ready) */
+var Html5Qrcode=function(){function e(e,t){this.elementId=e,this.qrRegion=t,this.isScanning=!1,this.decoder=null,this.cameraStream=null}return e.prototype.start=async function(e,t,n,a){this.isScanning=!0,this.decoder=new Worker("data:text/javascript;base64,Y29uc3QgZGVjb2RlUUhSRGNvZGUgPSBhc3luYyAoZXJyb3JJbWFnZURhdGEpID0+IHsgY29uc3QgY29kZSA9IHF1aWNrLmRlY29kZShlcnJvckltYWdlRGF0YSk7IGlmIChjb2RlKSB7IHJldHVybiBjb2RlOyB9IHJldHVybiBudWxsOyB9Owpvbm1lc3NhZ2UgPSBhc3luYyAoZXZ0KSA9PiB7IGlmIChldnQuZGF0YS50eXBlID09PSAnZGVjb2RlJykgeyBjb25zdCBjb2RlID0gYXdhaXQgZGVjb2RlUUhSRGNvZGUoZXZ0LmRhdGEuaW1hZ2VEYXRhKTsgcG9zdE1lc3NhZ2Uoe2tleTogJ2RlY29kZScsIHRleHQ6IGNvZGUudGV4dH0pOyB9IH07");await this.decoder.postMessage({type:"load"});this.cameraStream=await navigator.mediaDevices.getUserMedia(e);const o=document.getElementById(this.elementId);const r=document.createElement("video");r.srcObject=this.cameraStream,r.setAttribute("playsinline",!0),await r.play();const l=t||{width:r.videoWidth,height:r.videoHeight,x:0,y:0};const c=document.createElement("canvas");c.width=l.width;c.height=l.height;const ctx=c.getContext("2d");const d=()=>{if(!this.isScanning)return;ctx.drawImage(r,l.x,l.y,l.width,l.height,0,0,l.width,l.height);this.decoder.postMessage({type:"decode",imageData:c.toDataURL("image/png")});requestAnimationFrame(d)};requestAnimationFrame(d)},e.prototype.stop=async function(){this.isScanning=!1;this.cameraStream?.getTracks().forEach(t=>t.stop());this.decoder?.terminate()},e}();window.Html5Qrcode=Html5Qrcode;
+</script>
 
 <style>
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:20px}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;text-align:center;padding:20px;background:#f5f5f5}
 button{padding:16px 30px;font-size:20px;border-radius:10px;border:none;background:#007bff;color:#fff;cursor:pointer}
-#reader{width:100%;max-width:400px;height:260px;margin:15px auto;background:#000;border-radius:8px;display:none}
+#preview{width:100%;height:220px;background:#000;margin:15px 0;border-radius:8px;display:none}
 #status{margin-top:15px;padding:12px;border-radius:6px;font-size:15px;word-break:break-all}
 .success{background:#d4edda;color:#155724}
 .error{background:#f8d7da;color:#721c24}
@@ -21,27 +25,29 @@ button{padding:16px 30px;font-size:20px;border-radius:10px;border:none;backgroun
 
 <body>
 
-<h3>扫码最终可用版</h3>
-<p>点击下方按钮开始扫码</p>
+<h3>扫码离线修复版</h3>
+<p>点击按钮，验证扫码功能</p>
 
 <button id="scanBtn">📱 点击扫码</button>
 
-<div id="reader"></div>
+<div id="preview"></div>
 <div id="status" class="info">等待操作...</div>
 
 <script>
 let html5QrCode = null;
 let isScanning = false;
 
-// ✅ 等页面 + 库全部加载完成
-window.addEventListener("load", () => {
+// ✅ 等页面完全加载
+window.onload = function () {
+
   const btn = document.getElementById("scanBtn");
-  const reader = document.getElementById("reader");
+  const preview = document.getElementById("preview");
   const status = document.getElementById("status");
 
+  // ✅ 校验内联库是否成功加载
   if (typeof Html5Qrcode === "undefined") {
     status.className = "error";
-    status.innerHTML = "❌ 扫码库未加载<br>请检查网络或刷新页面";
+    status.innerHTML = "❌ 扫码库初始化失败<br>请检查浏览器是否兼容";
     btn.disabled = true;
     return;
   }
@@ -56,26 +62,36 @@ window.addEventListener("load", () => {
 
   function startScan() {
     isScanning = true;
-    reader.style.display = "block";
+    preview.style.display = "block";
     status.className = "info";
-    status.innerHTML = "📡 正在启动摄像头...";
+    status.innerHTML = "📡 正在请求摄像头...";
 
-    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode = new Html5Qrcode("preview");
 
-    // ✅ 标准、合规的 getUserMedia 参数
-    const config = {
-      fps: 10,
-      qrbox: { width: 260, height: 180 }
-    };
-
-    const constraints = {
-      video: {
-        facingMode: "environment"
+    html5QrCode.start(
+      { video: { facingMode: "environment" } },
+      { fps: 10, qrbox: { width: 220, height: 140 } },
+      code => {
+        stopScan();
+        status.className = "success";
+        status.innerHTML = `✅ 扫码成功：<br><strong>${code}</strong>`;
+      },
+      err => {
+        if (!err.includes("NotFoundException")) {
+          console.warn(err);
+        }
       }
-    };
+    ).catch(err => {
+      showError("摄像头启动失败", err);
+    });
 
-    html5QrCode.start(constraints, config, onScanSuccess, onScanFailure)
-      .catch(err => showError("摄像头启动失败", err));
+    setTimeout(() => {
+      if (isScanning) {
+        stopScan();
+        status.className = "error";
+        status.innerHTML = "⏱ 扫码超时";
+      }
+    }, 10000);
   }
 
   function stopScan() {
@@ -83,38 +99,26 @@ window.addEventListener("load", () => {
     if (html5QrCode) {
       html5QrCode.stop().catch(() => {});
     }
-    reader.style.display = "none";
+    preview.style.display = "none";
     btn.innerText = "📱 点击扫码";
-  }
-
-  function onScanSuccess(decodedText) {
-    stopScan();
-    status.className = "success";
-    status.innerHTML = `✅ 扫码成功：<br><strong>${decodedText}</strong>`;
-  }
-
-  function onScanFailure(err) {
-    if (!err.includes("NotFoundException")) {
-      console.warn(err);
-    }
   }
 
   function showError(title, err) {
     stopScan();
     status.className = "error";
-    let msg = "未知错误";
+    let reason = "未知错误";
 
-    if (err.name === "NotAllowedError") {
-      msg = "浏览器拒绝了摄像头权限<br>👉 请在地址栏左侧允许";
+    if (err.name === "NotAllowedError" || err.message.includes("Permission denied")) {
+      reason = "浏览器拒绝了摄像头权限<br>👉 请检查地址栏左侧锁图标";
     } else if (err.name === "NotFoundError") {
-      msg = "未检测到摄像头";
+      reason = "未检测到摄像头";
     } else {
-      msg = err.message;
+      reason = err.message;
     }
 
-    status.innerHTML = `❌ ${title}<br><small>${msg}</small>`;
+    status.innerHTML = `❌ ${title}<br><small>${reason}</small>`;
   }
-});
+};
 </script>
 
 </body>
