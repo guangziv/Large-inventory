@@ -169,12 +169,6 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
           仅在名称未修改时自动保存条码（防误触）
         </label>
       </div>
-      <div class="form-group" style="margin-top:8px">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
-          <input type="checkbox" id="continuousCaptureSwitch" style="width:16px;height:16px">
-          连续拍照模式（保存后自动重拍）
-        </label>
-      </div>
       <div style="display:flex;gap:10px;margin-top:10px">
         <button onclick="importCodeDict()" style="flex:1;padding:10px;background:#20c997;color:#fff;border:none;border-radius:6px;font-size:14px">📥 导入字典</button>
         <button onclick="openCodeModal()" style="flex:1;padding:10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;font-size:14px">📇 管理条码字典</button>
@@ -218,12 +212,19 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
       <textarea id="feedbackText" rows="4" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:8px;font-size:14px"></textarea>
     </div>
     <div style="font-size:13px;color:#666;margin-bottom:10px">
-      可发送至：inventory@yourdomain.com<br>
-      或 GitHub Issues
+      可发送至：guangzi618@qq.com<br>
+      联系微信：gz17618
     </div>
     <button onclick="sendFeedback()" style="width:100%;padding:10px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:14px">
       📮 提交反馈
     </button>
+    <hr style="margin:12px 0">
+    <div class="form-group" style="margin-top:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
+        <input type="checkbox" id="continuousCaptureSwitch" style="width:16px;height:16px">
+        连续拍照模式（开启后与“重拍”效果一致）
+      </label>
+    </div>
     <hr style="margin:12px 0">
     <button onclick="location.href='https://guangziv.github.io/Inventory/'" style="width:100%;padding:10px;background:#17a2b8;color:#fff;border:none;border-radius:6px;font-size:14px">
       🔄 检查最新版本
@@ -415,22 +416,28 @@ realtimeOcrBtn.onpointerdown=function(e){
 captureBtn.onpointerdown=function(e){
   e.preventDefault();
   navigator.vibrate&&navigator.vibrate(50);
-  const c=document.createElement("canvas"),ctx=c.getContext("2d");
+  
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  
   const frame=document.querySelector('.focus-frame');
   const fr=frame.getBoundingClientRect();
   const vr=video.getBoundingClientRect();
-  const sx=Math.max(0,(fr.left-vr.left+offsetX)*(video.videoWidth/vr.width)/scale);
-  const sy=Math.max(0,(fr.top-vr.top+offsetY)*(video.videoHeight/vr.height)/scale);
-  let sw=Math.max(1,fr.width*(video.videoWidth/vr.width)/scale);
-  let sh=Math.max(1,fr.height*(video.videoHeight/vr.height)/scale);
-  sw=Math.min(video.videoWidth-sx,sw);sh=Math.min(video.videoHeight-sy,sh);
-  let outW=sw;if(outW>1600)outW=1600;
-  const outH=sh/sw*outW;
-  c.width=outW;c.height=outH;
-  ctx.translate(outW/2,outH/2);ctx.rotate(rotation*Math.PI/180);
-  ctx.drawImage(video,sx,sy,sw,sh,-outW/2,-outH/2,outW,outH);
-  stopCamera();
-  tempImageData=c.toDataURL("image/jpeg",0.9);
+
+  const sx = (fr.left - vr.left) * (vw / vr.width);
+  const sy = (fr.top - vr.top) * (vh / vr.height);
+  const sw = fr.width * (vw / vr.width);
+  const sh = fr.height * (vh / vr.height);
+
+  const canvas=document.createElement('canvas');
+  canvas.width=sw;
+  canvas.height=sh;
+  const ctx=canvas.getContext('2d');
+  
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+  
+  tempImageData=canvas.toDataURL("image/jpeg",0.98);
+  
   const modal=document.getElementById('formModal');
   modal.style.display='flex';
   if(latestOcrText){
@@ -442,8 +449,12 @@ captureBtn.onpointerdown=function(e){
 };
 
 function retakePhoto(){
-  closeFormModal();
-  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>video.srcObject=s).catch(()=>alert("❌ 无法访问摄像头"));
+  tempImageData = "";
+  imagePreview.style.display = 'none';
+  imagePreview.src = "";
+  document.getElementById("inp_code_display").value = "";
+  document.getElementById("scanStatus").innerText = "";
+  document.getElementById("formModal").style.display = 'none';
 }
 
 function stopScan(){if(currentScanner){try{currentScanner.stop()}catch{} try{currentScanner.clear()}catch{} currentScanner=null;}document.getElementById("scanner_container").style.display="none";isScanning=false;}
@@ -523,6 +534,8 @@ const saveRecord=withDB(async db=>{
     await saveCodeMapping(scannedCode, productName);
   }
 
+  alert("保存成功！");
+  
   const isContinuous = document.getElementById("continuousCaptureSwitch")?.checked;
   if (isContinuous) {
     retakePhoto();
@@ -530,7 +543,6 @@ const saveRecord=withDB(async db=>{
     closeFormModal();
   }
   
-  alert("保存成功！");
   btn.disabled=false;
 });
 
@@ -678,7 +690,7 @@ async function exportPackageZip(){
     const c=document.createElement("canvas"),ctx=c.getContext("2d");
     c.width=img.width;c.height=img.height;
     ctx.drawImage(img,0,0,img.width,img.height);
-    z.folder("images").file(`${id}.jpg`,c.toDataURL("image/jpeg",0.65).split(",")[1],{base64:true});
+    z.folder("images").file(`${id}.jpg`,c.toDataURL("image/jpeg",0.95).split(",")[1],{base64:true});
   });
   const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
   Object.keys(cat).forEach(k=>XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",产品类别:k,产品名称:"类别合计",规格:"",颜色:"",数量:cat[k],备注:"",图片编号:""}],{skipHeader:true,origin:-1}));
@@ -703,7 +715,8 @@ async function exportPackageExcel(){
     Object.keys(cat).forEach(k=>{const row=ws.addRow([]);row.getCell(5).value=k+" 合计：";row.getCell(8).value=cat[k];});
     const total=records.reduce((s,r)=>s+Number(r.qty||0),0);
     const tr=ws.addRow([]);tr.getCell(5).value="盘点总计：";tr.getCell(8).value=total;
-    for(let i=0;i<records.length;i++){const r=records[i];if(!r.image)continue;const base64=r.image.startsWith("data:image")?r.image.split(",")[1]:null;if(!base64)continue;await new Promise(res=>setTimeout(res,0));const imageId=workbook.addImage({base64,extension:"jpeg"});ws.addImage(imageId,{tl:{col:3,row:i+1},br:{col:4,row:i+2},editAs:"oneCell"});ws.getRow(i+2).height=50;}
+    for(let i=0;i<records.length;i++){const r=records[i];if(!r.image)continue;const base64=r.image.startsWith("data:image")?r.image.split(",")[1]:null;if(!base64)continue;await new Promise(res=>setTimeout(res,0));const imageId=workbook.addImage({base64,extension:"jpeg"});
+      ws.addImage(imageId,{tl:{col:3,row:i+1},br:{col:4,row:i+2},editAs:"oneCell"});ws.getRow(i+2).height=50;}
     const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
     const buffer=await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`光子盘点_${ds}_带图.xlsx`);
@@ -792,8 +805,9 @@ function sendFeedback(){
     alert("请先输入反馈内容");
     return;
   }
-  alert("感谢反馈！请截图并发送邮件至 inventory@yourdomain.com");
-  document.getElementById("feedbackText").value="";
+  const subject = encodeURIComponent("光子盘点App反馈");
+  const body = encodeURIComponent(text);
+  window.location.href = `mailto:guangzi618@qq.com?subject=${subject}&body=${body}`;
   closeSettingsModal();
 }
 </script>
