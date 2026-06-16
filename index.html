@@ -56,15 +56,7 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 .form-group input,.form-group select{width:100%;height:46px;line-height:46px;padding:0 9px;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;font-size:16px}
 .form-group input:focus,.form-group select:focus{outline:none;border-color:#007bff;box-shadow:0 0 0 2px rgba(0,123,255,.2)}
 
-#imagePreview{
-  width: 100%;
-  max-height: 140px;
-  object-fit: contain;
-  display: block;
-  margin-bottom: 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-}
+#imagePreview{width:100%;max-height:140px;object-fit:contain;display:block;margin-bottom:8px;border:1px solid #ddd;border-radius:6px;}
 
 .modal button.save{width:100%;background:linear-gradient(180deg,#28a745,#fd7e14);border:none;border-radius:10px;color:#fff;font-size:18px;font-weight:bold;box-shadow:0 4px 10px rgba(40,167,69,.35)}
 .modal button.retake{width:100%;padding:10px;margin-top:8px;background:#6c757d;color:#fff;border:none;border-radius:10px;font-size:16px}
@@ -536,6 +528,16 @@ function closeFormModal(){
   imagePreview.style.display = 'none';
   document.getElementById("inp_code_display").value="";
   document.getElementById("scanStatus").innerText="";
+}
+
+async function findProductNameByCode(code){
+  const db=await openDB();
+  return new Promise(res=>{
+    db.transaction(STORE_CODE,"readonly")
+      .objectStore(STORE_CODE)
+      .get(code)
+      .onsuccess=e=>res(e.target.result?.name);
+  });
 }
 
 async function openCodeModal(){document.getElementById("codeModal").style.display="flex";document.getElementById("codeSearch").value="";const db=await openDB();allCodesCache=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));renderCodeList(allCodesCache);}
