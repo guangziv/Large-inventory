@@ -1,39 +1,748 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>扫码</title>
+<meta charset="UTF-8">
+<title>光子盘点</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="光子盘点">
+
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <style>
-body{font-family:sans-serif;text-align:center}
-button{padding:12px 24px;font-size:16px}
-#out{padding:12px;word-break:break-all}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;}
+h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
+
+#cameraWrap{position:relative;width:100vw;height:50vh;background:#000;overflow:hidden;}
+#video{width:100%;height:100%;object-fit:cover;will-change:transform;}
+
+.focus-frame{position:absolute;top:50%;left:50%;width:260px;height:160px;transform:translate(-50%,-50%);border:2.5px solid #0ff;border-radius:10px;pointer-events:none;}
+.ocr-frame{position:absolute;top:50%;left:50%;width:240px;height:48px;transform:translate(-50%,-50%);border:2px dashed rgba(255,0,0,.85);border-radius:6px;pointer-events:none;z-index:11;}
+#realtimeOcrResult{position:absolute;top:calc(50% + 40px);left:50%;transform:translateX(-50%);width:90%;max-width:300px;background:rgba(0,0,0,.75);color:#0f0;font-size:16px;font-weight:bold;text-align:center;padding:8px 12px;border-radius:6px;z-index:12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;}
+
+#cameraActions{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);display:flex;gap:20px;z-index:10}
+#captureBtn,#scanBtn,#realtimeOcrBtn{width:72px;height:72px;border-radius:50%;border:4px solid #fff;font-size:28px;display:flex;align-items:center;justify-content:center}
+#captureBtn{background:rgba(255,255,255,.95);border-color:#07f}
+#scanBtn{background:rgba(40,167,69,.95);color:#fff;font-weight:700;font-size:26px}
+#realtimeOcrBtn{background:rgba(255,193,7,.95);color:#333;font-size:22px}
+
+.toolbar{display:flex;justify-content:space-around;padding:10px 5px;background:#111;position:sticky;bottom:0;z-index:100}
+.toolbar button{border:none;color:#fff;padding:12px 16px;border-radius:8px;font-size:14px;flex:1;margin:0 4px;max-width:120px}
+.toolbar button:nth-child(1){background:#17a2b8}
+.toolbar button:nth-child(2){background:#28a745}
+.toolbar button:nth-child(3){background:#ffc107;color:#333}
+.toolbar button:nth-child(4){background:#fd7e14}
+.toolbar button:nth-child(5){background:#6f42c1}
+.toolbar button:nth-child(6){background:#20c997}
+.toolbar button:nth-child(7){background:#dc3545}
+
+#list{overflow-x:auto;padding:10px;display:none}
+#list table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}
+#list th,#list td{border:1px solid #ddd;padding:6px;text-align:center;white-space:nowrap}
+#list th:last-child,#list td:last-child{position:sticky;right:0;background:#fff;width:70px}
+#list td:last-child button{width:100%;padding:6px 0;font-size:16px;background:#dc3545;color:#fff;border:none;border-radius:4px}
+#list tfoot td{position:sticky;bottom:0;background:#fff;font-weight:bold;border-top:2px solid #007bff;font-size:14px}
+
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:999}
+.modal{background:#fff;padding:10px;border-radius:10px;width:92%;max-width:420px;max-height:88vh;overflow-y:auto;border:1px solid #007bff}
+.modal h4{margin:5px 0 10px;font-size:17px;text-align:center;color:#007bff}
+
+.form-group{margin-bottom:8px}
+.form-group label{font-size:13px;color:#666;display:block;margin-bottom:3px}
+.form-group input,.form-group select{width:100%;height:46px;line-height:46px;padding:0 9px;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;font-size:16px}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#007bff;box-shadow:0 0 0 2px rgba(0,123,255,.2)}
+
+#imagePreview{width:100%;display:block;margin-bottom:8px;border:1px solid #ddd;border-radius:6px;}
+
+.modal button.save{width:100%;background:linear-gradient(180deg,#28a745,#fd7e14);border:none;border-radius:10px;color:#fff;font-size:18px;font-weight:bold;box-shadow:0 4px 10px rgba(40,167,69,.35)}
+.modal button.retake{width:100%;padding:10px;margin-top:8px;background:#6c757d;color:#fff;border:none;border-radius:10px;font-size:16px}
+
+.thumbnail{width:50px;height:50px;object-fit:cover;border-radius:4px;cursor:pointer}
+#exportMenu{display:none;position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:#222;border-radius:12px;padding:6px 0;z-index:9999;min-width:180px}
+#exportMenu div{padding:14px 18px;color:#fff;font-size:15px}
+#exportMenu div:active{background:#444}
+#imgModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:999}
+#imgModal img{max-width:100%;max-height:100%}
+
+.qty-control{display:flex;align-items:center;border-radius:8px;overflow:hidden;border:1px solid #ddd;width:fit-content}
+.qty-control input{flex:1;height:46px;min-width:60px;text-align:center;border:none;font-size:16px;background:#fff;outline:none}
+.qty-btn{width:40px;height:46px;font-size:22px;font-weight:600;border:none;background:linear-gradient(180deg,#f8f9fa,#e9ecef);cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center}
+.qty-btn:first-child{border-radius:8px 0 0 8px}
+.qty-btn:last-child{border-radius:0 8px 8px 0}
+
+.list-summary{position:sticky;top:0;background:#007bff;color:#fff;padding:8px 12px;font-size:16px;font-weight:bold;z-index:10;border-radius:6px 6px 0 0;margin-bottom:-1px}
+.advanced-toggle{text-align:center;color:#007bff;font-size:15px;margin-top:10px;cursor:pointer}
+.advanced-panel{display:none;border-top:1px solid #eee;padding-top:8px;margin-top:8px}
+
+#scanner_container{width:100%;height:200px;background:#000;border-radius:6px;margin-bottom:10px;display:none}
+#scanner_container video{width:100%;height:100%;object-fit:cover}
+#scanFileBtn{width:100%;padding:10px;margin-top:8px;background:#6c757d;color:#fff;border:none;border-radius:6px;font-size:14px}
+#fileInput{display:none}
+#scanStatus{text-align:center;font-size:14px;color:#007bff;margin-bottom:6px;min-height:22px}
+
+.code-item{display:flex;justify-content:space-between;align-items:center;padding:8px;font-size:13px;border-bottom:1px solid #eee}
+.code-item:last-child{border-bottom:none}
+.code-item span{font-weight:bold;color:#007bff}
+.code-item button{background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px}
+
+.form-btn{flex:1;padding:14px 16px;border:none;border-radius:10px;font-size:18px;font-weight:bold;box-sizing:border-box}
 </style>
 </head>
-<body>
 
-<h3>扫码</h3>
-<button onclick="start()">允许摄像头并开始扫码</button>
-<div id="r" style="margin-top:12px"></div>
-<p id="out"></p>
+<body>
+<h3>📦 光子盘点</h3>
+
+<div id="cameraWrap">
+  <video id="video" autoplay playsinline></video>
+  <div class="focus-frame"></div>
+  <div class="ocr-frame"></div>
+  <div id="realtimeOcrResult">等待识别...</div>
+  <div id="cameraActions">
+    <button id="scanBtn">新</button>
+    <button id="captureBtn">📸</button>
+    <button id="realtimeOcrBtn">👁️ OCR</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button onclick="rotate()">🔄 旋转</button>
+  <button onclick="toggleList()">📋 清单</button>
+  <button onclick="createBackup()">📥 备份</button>
+  <button onclick="toggleExportMenu()">📤 导出</button>
+  <button onclick="openRestoreModal()">♻️ 恢复</button>
+  <button onclick="openSettingsModal()">🔧 设置</button>
+  <button onclick="clearAll()">🗑️ 清空</button>
+</div>
+
+<div id="exportMenu">
+  <div onclick="exportPackageZip()">📦 导出数据包</div>
+  <div onclick="exportPackageExcel()">📷 导出带图 Excel</div>
+  <div onclick="exportCodeDict()">📕 导出条码字典</div>
+  <div onclick="exportInventoryCSV()">🧾 导出盘点 CSV</div>
+  <div onclick="exportCodeDictCSV()">🧾 导出条码字典 CSV</div>
+</div>
+
+<div class="modal-mask" id="formModal">
+  <div class="modal">
+    <h4>商品信息录入</h4>
+    <div id="scanner_container"></div>
+    <div id="scanStatus"></div>
+    <div class="form-group"><label>识别到的条码</label><input id="inp_code_display" type="text" readonly style="background:#e9ecef; font-weight:bold; color:#007bff;"></div>
+    <button id="scanFileBtn">🖼️ 扫描本地图片</button>
+    <input id="fileInput" type="file" accept="image/*">
+
+    <img id="imagePreview" alt="拍摄的图片">
+
+    <div class="form-group"><label>产品名称</label><input id="inp_name"></div>
+    <div style="display:flex;gap:10px">
+      <div class="form-group" style="flex:1"><label>产品类别</label>
+        <select id="inp_category">
+          <option>床架</option><option>床垫</option><option>床头柜</option><option>沙发</option><option>小件</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1"><label>规格</label>
+        <select id="inp_spec">
+          <option value="1.8*2.0">1.8×2.0</option><option value="1.5*2.0">1.5×2.0</option><option value="custom">定制</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="customSpecGroup" style="display:none"><label>自定义规格</label><input id="inp_custom_spec"></div>
+    <div style="display:flex;gap:10px">
+      <div class="form-group" style="flex:1"><label>颜色</label><input id="inp_color"></div>
+      <div class="form-group" style="flex:1"><label>数量</label>
+        <div class="qty-control">
+          <div class="qty-btn" onclick="changeQty(-1)">−</div>
+          <input id="inp_qty" type="number" value="1" inputmode="numeric" min="1" step="1">
+          <div class="qty-btn" onclick="changeQty(1)">+</div>
+        </div>
+      </div>
+    </div>
+    <div class="advanced-toggle" onclick="toggleAdvancedPanel()">⚙️ 高级选项</div>
+    <div class="advanced-panel" id="advancedPanel">
+      <div class="form-group" style="margin-top:8px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
+          <input type="checkbox" id="autoDictSwitch" checked style="width:16px;height:16px">
+          仅在名称未修改时自动保存条码（防误触）
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button onclick="importCodeDict()" style="flex:1;padding:10px;background:#20c997;color:#fff;border:none;border-radius:6px;font-size:14px">📥 导入字典</button>
+        <button onclick="openCodeModal()" style="flex:1;padding:10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;font-size:14px">📇 管理条码字典</button>
+      </div>
+      <button onclick="cloudOcr()" style="width:100%;padding:10px;margin-top:10px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:14px">
+        🌐 联网 OCR
+      </button>
+      <div class="form-group" style="margin-top:8px"><label>备注</label><input id="inp_note"></div>
+    </div>
+    <button class="retake" onclick="retakePhoto()">🔄 重拍</button>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="form-btn" style="background:#6c757d;color:#fff" onclick="closeFormModal()">❌ 取消</button>
+      <button class="form-btn save" onclick="saveRecord()">✅ 保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="codeModal">
+  <div class="modal">
+    <h4>条码字典管理</h4>
+    <div class="form-group"><input id="codeSearch" placeholder="搜索条码或名称..." oninput="searchCode()"></div>
+    <div id="codeListContainer"></div>
+    <button onclick="closeCodeModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">关闭</button>
+  </div>
+</div>
+
+<div class="modal-mask" id="restoreModal">
+  <div class="modal">
+    <h4>恢复备份</h4>
+    <div style="padding:6px 8px;font-size:13px;color:#666">📦 当前备份数量：<b id="backupCountText">0 / 10</b></div>
+    <div id="backupListContainer"></div>
+    <button onclick="closeRestoreModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">关闭</button>
+  </div>
+</div>
+
+<div class="modal-mask" id="settingsModal">
+  <div class="modal">
+    <h4>设置与反馈</h4>
+    <div class="form-group">
+      <label>问题反馈 / 建议</label>
+      <textarea id="feedbackText" rows="4" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:8px;font-size:14px"></textarea>
+    </div>
+    <div style="font-size:13px;color:#666;margin-bottom:10px">
+      可发送至：inventory@yourdomain.com<br>
+      或 GitHub Issues
+    </div>
+    <button onclick="sendFeedback()" style="width:100%;padding:10px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:14px">
+      📮 提交反馈
+    </button>
+    <hr style="margin:12px 0">
+    <button onclick="location.href='https://guangziv.github.io/Inventory/'" style="width:100%;padding:10px;background:#17a2b8;color:#fff;border:none;border-radius:6px;font-size:14px">
+      🔄 检查最新版本
+    </button>
+    <button onclick="closeSettingsModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">
+      关闭
+    </button>
+  </div>
+</div>
+
+<div id="imgModal" onclick="this.style.display='none'"><img id="bigImg"></div>
+<div id="list"></div>
 
 <script>
-function start(){
-  document.getElementById("out").innerText="正在请求摄像头权限...";
+function escapeHtml(s){
+  if(typeof s !== 'string') return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
 
-  const scanner = new Html5QrcodeScanner(
-    "r",
-    { fps:10,qrbox:{width:250,height:250} },
-    false
-  );
+let lastX=0,lastY=0;
+const DB_NAME="PhotonInventoryDB",DB_VER=2,STORE_REC="records",STORE_BAK="backups",STORE_CODE="codes";
+let records=[],dbReady=false,tempImageData="",scale=1,offsetX=0,offsetY=0,rotation=0,listVisible=false,isScanning=false,allCodesCache=[],currentScanner=null;
+let listPage=0, PAGE_SIZE=50;
+let isMultiTouch = false;
+let lastDist = 0;
+let lastAngle = 0;
+let realtimeOcrActive = false;
+let realtimeOcrTimer = null;
+let latestOcrText = '';
+let lastTap = 0;
+let ocrWorker = null;
 
-  scanner.render(
-    code=>document.getElementById("out").innerText="扫码结果："+code,
-    err=>document.getElementById("out").innerText="请允许摄像头权限才能扫码"
-  );
+async function initOcrWorker() {
+  if (!ocrWorker) {
+    ocrWorker = await Tesseract.createWorker('chi_sim+eng', 1, {
+      logger: m => console.log(m)
+    });
+  }
+  return ocrWorker;
+}
+
+const video=document.getElementById("video"),wrap=document.getElementById("cameraWrap"),captureBtn=document.getElementById("captureBtn"),scanBtn=document.getElementById("scanBtn"),realtimeOcrBtn=document.getElementById("realtimeOcrBtn");
+const scanStatus=document.getElementById("scanStatus");
+const realtimeOcrResultDiv = document.getElementById('realtimeOcrResult');
+const imagePreview = document.getElementById('imagePreview');
+
+navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>video.srcObject=s).catch(()=>alert("❌ 无法访问摄像头"));
+
+function applyTransform(){
+  video.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale}) rotate(${rotation}deg)`;
+}
+
+wrap.addEventListener("touchend",e=>{
+  const currentTime = new Date().getTime();
+  const tapLength = currentTime - lastTap;
+  if (tapLength < 300 && tapLength > 0) {
+    scale = 1; offsetX = 0; offsetY = 0; rotation = 0;
+    applyTransform();
+    navigator.vibrate && navigator.vibrate(50);
+  }
+  lastTap = currentTime;
+});
+
+wrap.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse"){
+    lastX=e.clientX;lastY=e.clientY;
+    wrap.setPointerCapture(e.pointerId);
+  }
+});
+
+wrap.addEventListener("pointermove",e=>{
+  if(e.pointerType==="mouse" && e.buttons&1){
+    offsetX+=e.clientX-lastX;offsetY+=e.clientY-lastY;
+    lastX=e.clientX;lastY=e.clientY;
+    requestAnimationFrame(applyTransform);
+  }
+});
+
+wrap.addEventListener("touchstart",e=>{
+  if(e.touches.length===1){
+    lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;
+  }
+  if(e.touches.length===2){
+    isMultiTouch=true;lastDist=getDist(e);lastAngle=getAngle(e);
+  }
+});
+
+wrap.addEventListener("touchmove",e=>{
+  if(e.touches.length===1 && !isMultiTouch){
+    e.preventDefault();
+    offsetX+=e.touches[0].clientX-lastX;
+    offsetY+=e.touches[0].clientY-lastY;
+    lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;
+  }
+  if(e.touches.length===2){
+    const d=getDist(e),a=getAngle(e);
+    scale=Math.max(1,Math.min(3,scale*d/lastDist));
+    rotation+=a-lastAngle;
+    lastDist=d;lastAngle=a;
+  }
+  requestAnimationFrame(applyTransform);
+},{passive:false});
+
+wrap.addEventListener("touchend",()=>isMultiTouch=false);
+
+function rotate(){
+  rotation=(rotation+90)%360;
+  requestAnimationFrame(applyTransform);
+}
+
+function stopCamera(){
+  try{
+    const s=video.srcObject;
+    if(s) s.getTracks().forEach(t=>t.stop());
+    video.srcObject=null;
+  }catch(e){}
+  realtimeOcrActive=false;
+  if(realtimeOcrTimer){
+    clearTimeout(realtimeOcrTimer);
+    realtimeOcrTimer=null;
+  }
+  realtimeOcrResultDiv.style.display="none";
+  realtimeOcrBtn.style.background='rgba(255,193,7,.95)';
+}
+
+window.addEventListener('beforeunload', () => {
+  if (ocrWorker) {
+    ocrWorker.terminate();
+    ocrWorker = null;
+  }
+});
+
+async function realTimeOcr(){
+  if(!realtimeOcrActive || video.paused || video.ended) {
+    stopCamera();
+    return;
+  }
+  const frame=document.querySelector('.ocr-frame');
+  const vr=video.getBoundingClientRect();
+  const fr=frame.getBoundingClientRect();
+  const scaleX=video.videoWidth/vr.width;
+  const scaleY=video.videoHeight/vr.height;
+  const sx=Math.max(0,(fr.left-vr.left)*scaleX);
+  const sy=Math.max(0,(fr.top-vr.top)*scaleY);
+  let sw=fr.width*scaleX;
+  let sh=fr.height*scaleY;
+  sw=Math.min(video.videoWidth-sx,sw);sh=Math.min(video.videoHeight-sy,sh);
+  const canvas=document.createElement('canvas');
+  canvas.width=sw;canvas.height=sh;
+  const ctx=canvas.getContext('2d');
+  ctx.filter = 'grayscale(100%)';
+  ctx.drawImage(video,sx,sy,sw,sh,0,0,sw,sh);
+  const dataUrl=canvas.toDataURL("image/jpeg",0.95);
+  try {
+    const worker = await initOcrWorker();
+    const {data} = await worker.recognize(dataUrl, {
+      tessedit_pageseg_mode: 7,
+      tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz一二三四五六七八九十百千万亿个只张台套件箱包袋瓶盒'
+    });
+    if(data.text){
+      latestOcrText=data.text.trim().split('\n')[0];
+      realtimeOcrResultDiv.innerText=latestOcrText;
+    }
+  } catch(err) {
+    realtimeOcrResultDiv.innerText="识别失败";
+    realtimeOcrActive = false;
+    stopCamera();
+  }
+  realtimeOcrTimer=setTimeout(realTimeOcr,800);
+}
+
+realtimeOcrBtn.onpointerdown=function(e){
+  e.preventDefault();
+  realtimeOcrActive=!realtimeOcrActive;
+  if(realtimeOcrActive){
+    this.style.background='rgba(220,53,69,.95)';
+    realtimeOcrResultDiv.style.display='block';
+    realTimeOcr();
+    navigator.vibrate&&navigator.vibrate([30,50,30]);
+  }else{
+    this.style.background='rgba(255,193,7,.95)';
+    realtimeOcrResultDiv.style.display='none';
+    clearTimeout(realtimeOcrTimer);
+  }
+};
+
+captureBtn.onpointerdown=function(e){
+  e.preventDefault();
+  navigator.vibrate&&navigator.vibrate(50);
+  const c=document.createElement("canvas"),ctx=c.getContext("2d");
+  const frame=document.querySelector('.focus-frame');
+  const fr=frame.getBoundingClientRect();
+  const vr=video.getBoundingClientRect();
+  const sx=Math.max(0,(fr.left-vr.left+offsetX)*(video.videoWidth/vr.width)/scale);
+  const sy=Math.max(0,(fr.top-vr.top+offsetY)*(video.videoHeight/vr.height)/scale);
+  let sw=Math.max(1,fr.width*(video.videoWidth/vr.width)/scale);
+  let sh=Math.max(1,fr.height*(video.videoHeight/vr.height)/scale);
+  sw=Math.min(video.videoWidth-sx,sw);sh=Math.min(video.videoHeight-sy,sh);
+  let outW=sw;if(outW>1600)outW=1600;
+  const outH=sh/sw*outW;
+  c.width=outW;c.height=outH;
+  ctx.translate(outW/2,outH/2);ctx.rotate(rotation*Math.PI/180);
+  ctx.drawImage(video,sx,sy,sw,sh,-outW/2,-outH/2,outW,outH);
+  stopCamera();
+  tempImageData=c.toDataURL("image/jpeg",0.9);
+  const modal=document.getElementById('formModal');
+  modal.style.display='flex';
+  if(latestOcrText){
+    document.getElementById('inp_name').value=latestOcrText;
+    latestOcrText='';
+  }
+  imagePreview.src = tempImageData;
+  imagePreview.style.display = 'block';
+};
+
+function retakePhoto(){
+  closeFormModal();
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>video.srcObject=s).catch(()=>alert("❌ 无法访问摄像头"));
+}
+
+function stopScan(){if(currentScanner){try{currentScanner.stop()}catch{} try{currentScanner.clear()}catch{} currentScanner=null;}document.getElementById("scanner_container").style.display="none";isScanning=false;}
+
+scanBtn.onpointerdown=e=>{
+  e.preventDefault();
+  if(isScanning) return;
+  stopCamera();
+  isScanning=true;
+  const sc=document.getElementById("scanner_container");
+  sc.style.display="block";
+  document.getElementById("formModal").style.display="flex";
+  scanStatus.innerText="🔄 正在启动摄像头…";
+  currentScanner=new Html5Qrcode("scanner_container");
+  Html5Qrcode.getCameras().then(cams=>{
+    if(!cams.length){scanStatus.innerText="❌ 未检测到摄像头";stopScan();return;}
+    scanStatus.innerText="📷 请将条码对准取景框";
+    currentScanner.start(cams[cams.length-1].id,{
+      fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.777778
+    },handleScanSuccess,()=>{});
+  }).catch(()=>{scanStatus.innerText="❌ 无法访问摄像头";stopScan();});
+};
+
+async function handleScanSuccess(code){
+  navigator.vibrate&&navigator.vibrate(100);
+  scanStatus.innerText="✅ 识别成功";
+  document.getElementById("inp_code_display").value=code;
+  const name=await findProductNameByCode(code);
+  document.getElementById("inp_name").value=name||code;
+  if(currentScanner) currentScanner.pause();
+}
+
+document.getElementById("scanFileBtn").onclick=()=>document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange=async function(e){
+  const file=e.target.files[0];if(!file) return;
+  scanStatus.innerText="🔄 正在识别图片…";
+  try{const qr=new Html5Qrcode("scanner_container");const code=await qr.scanFile(file,true);handleScanSuccess(code);}catch{scanStatus.innerText="❌ 图片中未识别到条码";}finally{this.value="";}
+};
+
+document.getElementById("inp_category").onchange=function(){
+  const s=document.getElementById("inp_spec"),g=document.getElementById("customSpecGroup");
+  if(["床头柜","沙发","小件"].includes(this.value)){s.value="custom";g.style.display="block";}else{g.style.display=s.value==="custom"?"block":"none";}
+};
+document.getElementById("inp_spec").onchange=function(){document.getElementById("customSpecGroup").style.display=this.value==="custom"?"block":"none";};
+
+function changeQty(d){const i=document.getElementById("inp_qty");i.value=Math.max(1,(parseInt(i.value)||1)+d);}
+
+function toggleAdvancedPanel() {
+    const panel = document.getElementById('advancedPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(STORE_REC))db.createObjectStore(STORE_REC,{keyPath:"id",autoIncrement:true});if(!db.objectStoreNames.contains(STORE_BAK))db.createObjectStore(STORE_BAK,{keyPath:"key"});if(!db.objectStoreNames.contains(STORE_CODE))db.createObjectStore(STORE_CODE,{keyPath:"code"});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+
+async function initDB(){const db=await openDB();dbReady=true;await loadRecords(db);}
+async function loadRecords(db){return new Promise(res=>{const list=[];const tx=db.transaction(STORE_REC,"readonly");const store=tx.objectStore(STORE_REC);store.openCursor().onsuccess=e=>{const cursor=e.target.result;if(cursor){list.push(cursor.value);cursor.continue();}else{records=list;res();}};});}
+
+function withDB(fn){return async(...a)=>{if(!dbReady)await initDB();const db=await openDB();return fn(db,...a);};}
+
+async function saveCodeMapping(code,name){if(!code||!name||code===name)return;const db=await openDB();await new Promise(r=>db.transaction(STORE_CODE,"readwrite").objectStore(STORE_CODE).put({code,name}).onsuccess=r);}
+
+const saveRecord=withDB(async db=>{
+  const btn=document.querySelector("#formModal button.save");
+  btn.disabled=true;
+  const n=document.getElementById("inp_name").value.trim();
+  if(!n){btn.disabled=false;return alert("产品名称不能为空");}
+  let s=document.getElementById("inp_spec").value;
+  s=s==="custom"?document.getElementById("inp_custom_spec").value.trim()||"定制":s;
+  const rec={id:Date.now(),time:new Date().toLocaleString(),name:n,category:document.getElementById("inp_category").value,spec:s,color:document.getElementById("inp_color").value.trim(),qty:document.getElementById("inp_qty").value,note:document.getElementById("inp_note").value.trim(),image:tempImageData};
+  await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).put(rec).onsuccess=r);
+  await loadRecords(db);
+  closeFormModal();
+  const autoSave=document.getElementById("autoDictSwitch").checked;
+  const scannedCode=document.getElementById("inp_code_display").value;
+  const productName=document.getElementById("inp_name").value.trim();
+  if (autoSave && scannedCode && productName && productName !== scannedCode) {
+    await saveCodeMapping(scannedCode, productName);
+  }
+  alert("保存成功！");
+  btn.disabled=false;
+});
+
+function closeFormModal(){
+  stopScan();
+  stopCamera();
+  document.getElementById("formModal").style.display="none";
+  tempImageData="";
+  imagePreview.style.display = 'none';
+  document.getElementById("inp_code_display").value="";
+  document.getElementById("scanStatus").innerText="";
+}
+
+async function openCodeModal(){document.getElementById("codeModal").style.display="flex";document.getElementById("codeSearch").value="";const db=await openDB();allCodesCache=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));renderCodeList(allCodesCache);}
+function closeCodeModal(){document.getElementById("codeModal").style.display="none";}
+function renderCodeList(list){const c=document.getElementById("codeListContainer");if(!list.length){c.innerHTML='<div style="text-align:center;color:#999;padding:20px">暂无数据</div>';return;}c.innerHTML=list.map(i=>`<div class="code-item"><div><div>${escapeHtml(i.name)}</div><span>${escapeHtml(i.code)}</span></div><button onclick="deleteCodeMapping(\'${i.code}\')">删除</button></div>`).join('');}
+function searchCode(){const k=document.getElementById("codeSearch").value.toLowerCase();renderCodeList(allCodesCache.filter(i=>i.code.includes(k)||i.name.toLowerCase().includes(k)));}
+async function deleteCodeMapping(code){if(!confirm(`确定删除条码 "${code}" 的映射吗？`))return;const db=await openDB();await new Promise(r=>db.transaction(STORE_CODE,"readwrite").objectStore(STORE_CODE).delete(code).onsuccess=r);allCodesCache=allCodesCache.filter(i=>i.code!==code);renderCodeList(allCodesCache);alert("删除成功！");}
+
+function toggleList(){listVisible=!listVisible;document.getElementById("list").style.display=listVisible?"block":"none";document.querySelector(".toolbar button:nth-child(2)").innerText=listVisible?"🙈 隐藏":"📋 清单";if(listVisible)renderList();}
+
+function renderList(){
+  if(!records.length){document.getElementById("list").innerHTML="<p style='text-align:center;color:#999'>暂无数据</p>";return;}
+  const total=records.reduce((s,r)=>s+Number(r.qty||0),0);
+  const start=listPage*PAGE_SIZE;
+  const pageRecords=records.slice(start,start+PAGE_SIZE);
+  const container = document.getElementById("list");
+  container.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  const summaryDiv = document.createElement('div');
+  summaryDiv.className = 'list-summary';
+  summaryDiv.textContent = `📦 当前总数量：${total}`;
+  fragment.appendChild(summaryDiv);
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  thead.innerHTML = `<tr><th>序号</th><th>时间</th><th>类别</th><th>图片</th><th>名称</th><th>规格</th><th>颜色</th><th>数量</th><th>备注</th><th>操作</th></tr>`;
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  pageRecords.forEach((r,i)=>{
+    const idx=start+i;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${idx+1}</td>
+        <td>${escapeHtml(r.time)}</td>
+        <td>${escapeHtml(r.category)}</td>
+        <td><img src="${r.image}" data-src="${r.image}" class="thumbnail" onclick="document.getElementById('bigImg').src=this.dataset.src;document.getElementById('imgModal').style.display='flex'"></td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.spec)}</td>
+        <td>${escapeHtml(r.color)}</td>
+        <td>${r.qty}</td>
+        <td>${escapeHtml(r.note)}</td>
+        <td><button onclick="deleteRecord(${idx})">🗑️</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  const tfoot = document.createElement('tfoot');
+  const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
+  Object.keys(cat).forEach(k=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="6"></td><td>${escapeHtml(k)} 合计：</td><td>${cat[k]}</td><td colspan="2"></td>`;
+    tfoot.appendChild(tr);
+  });
+  const trTotal = document.createElement('tr');
+  trTotal.innerHTML = `<td colspan="6"></td><td>盘点总计：</td><td>${total}</td><td colspan="2"></td>`;
+  tfoot.appendChild(trTotal);
+  table.appendChild(tfoot);
+  fragment.appendChild(table);
+  const paginationDiv = document.createElement('div');
+  paginationDiv.style.cssText = 'display:flex;justify-content:space-between;padding:8px';
+  paginationDiv.innerHTML = `
+      <button onclick="if(listPage>0){listPage--;renderList();}">⬅️ 上一页</button>
+      <span>第 ${listPage+1} / ${Math.ceil(records.length/PAGE_SIZE)} 页</span>
+      <button onclick="if((listPage+1)*PAGE_SIZE<records.length){listPage++;renderList();}">下一页 ➡️</button>
+  `;
+  fragment.appendChild(paginationDiv);
+  container.appendChild(fragment);
+}
+
+const deleteRecord=withDB(async(db,i)=>{if(!confirm("确定删除这条记录吗？"))return;await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).delete(records[i].id).onsuccess=r);await loadRecords(db);renderList();});
+
+const createBackup=withDB(async db=>{
+  if(!records.length)return alert("❌ 备份失败：暂无数据！");
+  const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));
+  if(list.length>=10)return alert("❌ 存储已满，请删除过期备份");
+  const t=Date.now();
+  const key=`inventory_backup_${t}`;
+  await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).put({key,time:new Date().toLocaleString(),count:records.length,locked:false,data:JSON.parse(JSON.stringify(records))}).onsuccess=r);
+  alert(`✅ 备份成功！\n已用 ${list.length+1} / 10`);
+});
+
+const openRestoreModal=withDB(async db=>{
+  const c=document.getElementById("backupListContainer");
+  const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));
+  document.getElementById("backupCountText").innerText=`${list.length} / 10`;
+  if(!list.length){c.innerHTML="<p style='text-align:center;color:#999'>暂无备份记录</p>";document.getElementById("restoreModal").style.display="flex";return;}
+  list.sort((a,b)=>(a.locked&&!b.locked)?-1:(!a.locked&&b.locked)?1:new Date(b.time)-new Date(a.time));
+  c.innerHTML=list.map(i=>`<div style="background:${i.locked?'#eef6ff':'#fff'};padding:6px 8px;border-bottom:1px solid #eee;font-size:13px"><div onclick="restoreFromBackup('${i.key}')" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:bold">📅 ${escapeHtml(i.time)}</span><span style="color:#888">${i.count} 条</span></div><div style="display:flex;gap:6px"><button onclick="toggleLockBackup('${i.key}')" style="flex:1;padding:5px 0;font-size:12px;border:none;border-radius:4px;${i.locked?'background:#6c757d':'background:#17a2b8'};color:#fff">${i.locked?'🔒 已锁':'🔓 锁定'}</button><button onclick="deleteBackup('${i.key}')" style="flex:1;padding:5px 0;font-size:12px;background:#dc3545;color:#fff;border:none;border-radius:4px">❌ 删除</button></div></div>`).join("");
+  document.getElementById("restoreModal").style.display="flex";
+});
+
+function closeRestoreModal(){document.getElementById("restoreModal").style.display="none";}
+
+const restoreFromBackup=withDB(async(db,key)=>{
+  if(!confirm("确定恢复？当前数据将丢失！"))return;
+  const backup=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).get(key).onsuccess=e=>res(e.target.result));
+  if(!backup||!backup.data){alert("❌ 恢复失败：备份数据为空或损坏！");return;}
+  await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).clear().onsuccess=r);
+  const tx=db.transaction(STORE_REC,"readwrite");const store=tx.objectStore(STORE_REC);
+  backup.data.forEach(record=>{if(!record.id)delete record.id;store.put(record);});
+  await new Promise(r=>tx.oncomplete=r);
+  await loadRecords(db);
+  closeRestoreModal();
+  alert("恢复成功！");
+  if(listVisible)renderList();
+});
+
+const toggleLockBackup=withDB(async(db,key)=>{const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));const i=list.find(x=>x.key===key);if(!i)return;i.locked=!i.locked;await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).put(i).onsuccess=r);openRestoreModal();});
+const deleteBackup=withDB(async(db,key)=>{const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));const i=list.find(x=>x.key===key);if(i?.locked)return alert("已锁定，无法删除！");if(!confirm("确定删除？"))return;await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).delete(key).onsuccess=r);alert("已删除！");openRestoreModal();});
+
+const clearAll=withDB(async db=>{if(!confirm("确定清空所有数据？"))return;await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).clear().onsuccess=r);records=[];document.getElementById("list").innerHTML="";alert("已清空");});
+
+function toggleExportMenu(){const m=document.getElementById("exportMenu");m.style.display=m.style.display==="block"?"none":"block";}
+document.addEventListener("click",e=>{const m=document.getElementById("exportMenu"),btn=document.querySelector(".toolbar button[onclick*='toggleExportMenu']");if(m.style.display==="block"&&!m.contains(e.target)&&e.target!==btn)m.style.display="none";});
+
+async function exportPackageZip(){
+  if(!records.length)return alert("❌ 导出失败：暂无数据！");
+  const z=new JSZip(),wb=XLSX.utils.book_new();
+  wb.Props={Title:"光子盘点",Author:"光子盘点系统"};
+  const ws=XLSX.utils.json_to_sheet([],{header:["序号","时间","产品类别","产品名称","规格","颜色","数量","备注","图片编号"]});
+  records.forEach((r,i)=>{
+    const id=`IMG_${String(i+1).padStart(4,"0")}`;
+    XLSX.utils.sheet_add_json(ws,[{序号:i+1,时间:r.time,产品类别:r.category,产品名称:r.name,规格:r.spec,颜色:r.color,数量:r.qty,备注:r.note,图片编号:id}],{skipHeader:true,origin:i+1});
+    const img=new Image();img.src=r.image;
+    const c=document.createElement("canvas"),ctx=c.getContext("2d");
+    c.width=img.width;c.height=img.height;
+    ctx.drawImage(img,0,0,img.width,img.height);
+    z.folder("images").file(`${id}.jpg`,c.toDataURL("image/jpeg",0.65).split(",")[1],{base64:true});
+  });
+  const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
+  Object.keys(cat).forEach(k=>XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",产品类别:k,产品名称:"类别合计",规格:"",颜色:"",数量:cat[k],备注:"",图片编号:""}],{skipHeader:true,origin:-1}));
+  XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",产品类别:"总计",产品名称:"盘点总计",规格:"",颜色:"",数量:records.reduce((s,r)=>s+Number(r.qty||0),0),备注:"",图片编号:""}],{skipHeader:true,origin:-1});
+  XLSX.utils.book_append_sheet(wb,ws,"盘点数据");
+  const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  z.file(`光子盘点_${ds}.zip`,XLSX.write(wb,{bookType:"xlsx",type:"array"}),{binary:true});
+  await saveAs(await z.generateAsync({type:"blob",compression:"STORE"}),`光子盘点_${ds}.zip`);
+  alert("✅ ZIP 导出成功！");
+}
+
+async function exportPackageExcel(){
+  if(!records.length)return alert("❌ 导出失败：暂无数据！");
+  const btn=document.querySelector(".toolbar button[onclick*='toggleExportMenu']");
+  btn.innerText="⏳ 生成中";btn.disabled=true;
+  try{
+    const workbook=new ExcelJS.Workbook();
+    const ws=workbook.addWorksheet("盘点清单");
+    ws.columns=[{header:"序号",width:6},{header:"时间",width:20},{header:"产品类别",width:10},{header:"图片",width:18},{header:"产品名称",width:16},{header:"规格",width:12},{header:"颜色",width:10},{header:"数量",width:8},{header:"备注",width:16}];
+    records.forEach((r,i)=>ws.addRow([i+1,r.time,r.category,"",r.name,r.spec,r.color,r.qty,r.note]));
+    const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
+    Object.keys(cat).forEach(k=>{const row=ws.addRow([]);row.getCell(5).value=k+" 合计：";row.getCell(8).value=cat[k];});
+    const total=records.reduce((s,r)=>s+Number(r.qty||0),0);
+    const tr=ws.addRow([]);tr.getCell(5).value="盘点总计：";tr.getCell(8).value=total;
+    for(let i=0;i<records.length;i++){const r=records[i];if(!r.image)continue;const base64=r.image.startsWith("data:image")?r.image.split(",")[1]:null;if(!base64)continue;await new Promise(res=>setTimeout(res,0));const imageId=workbook.addImage({base64,extension:"jpeg"});ws.addImage(imageId,{tl:{col:3,row:i+1},br:{col:4,row:i+2},editAs:"oneCell"});ws.getRow(i+2).height=50;}
+    const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+    const buffer=await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`光子盘点_${ds}_带图.xlsx`);
+    alert("✅ Excel 导出成功！");
+  }catch(e){alert("❌ Excel 导出失败："+e.message);}
+  finally{btn.innerText="📤 导出";btn.disabled=false;document.getElementById("exportMenu").style.display="none";}
+}
+
+async function exportCodeDict(){const db=await openDB();const list=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));if(!list.length)return alert("❌ 暂无条码字典可导出");const ws=XLSX.utils.json_to_sheet(list,{header:["code","name"]});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"条码字典");const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});saveAs(blob,`条码字典_${ds}.xlsx`);alert("✅ 条码字典导出成功");}
+
+async function exportCodeDictCSV(){const db=await openDB();const list=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));if(!list.length)return alert("❌ 暂无条码字典可导出");const rows=[["条码","产品名称"],...list.map(i=>[i.code,i.name])];const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;saveAs(blob,`条码字典_${ds}.csv`);alert("✅ 条码字典 CSV 导出成功");}
+
+function exportInventoryCSV(){if(!records.length)return alert("❌ 暂无盘点数据");const rows=[["序号","时间","产品类别","产品名称","规格","颜色","数量","备注"],...records.map((r,i)=>[i+1,r.time,r.category,r.name,r.spec,r.color,r.qty,r.note])];const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;saveAs(blob,`光子盘点_${ds}.csv`);alert("✅ 盘点 CSV 导出成功");}
+
+async function importCodeDict(){const inp=document.createElement("input");inp.type="file";inp.accept=".xlsx,.xls";inp.onchange=async e=>{const f=e.target.files[0];if(!f)return;const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const ws=wb.Sheets[wb.SheetNames[0]];const data=XLSX.utils.sheet_to_json(ws);if(!data.length)return alert("❌ 文件中无有效数据");const db=await openDB();let added=0,updated=0;for(const r of data){const code=r["条码"]||r["code"];const name=r["产品名称"]||r["name"];if(!code||!name)continue;const exists=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).get(code).onsuccess=e=>res(!!e.target.result));await saveCodeMapping(code,name);exists?updated++:added++;}alert(`✅ 导入完成\n新增：${added}\n覆盖更新：${updated}`);openCodeModal();};inp.click();}
+
+document.getElementById("formModal").addEventListener("click",function(e){if(e.target===this)closeFormModal();});
+document.querySelector("#formModal .modal").addEventListener("click",function(e){e.stopPropagation();});
+initDB();
+
+function getDist(e){return Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+function getAngle(e){return Math.atan2(e.touches[1].clientY-e.touches[0].clientY,e.touches[1].clientX-e.touches[0].clientX)*180/Math.PI;}
+
+function cloudOcr() {
+  if (!tempImageData) {
+    alert("❌ 请先拍照再使用联网 OCR");
+    return;
+  }
+  fetch("https://1443771412-ibm8f1zqky.in.ap-shanghai.tencentscf.com", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: tempImageData })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data && data.text) {
+      document.getElementById("inp_name").value = data.text.trim();
+      alert("✅ 联网 OCR 识别成功");
+    } else {
+      alert("❌ 联网 OCR 未返回有效文本");
+    }
+  })
+  .catch(err => {
+    alert("❌ 联网 OCR 失败：" + err.message);
+  });
+}
+
+function openSettingsModal(){
+  document.getElementById("settingsModal").style.display="flex";
+}
+function closeSettingsModal(){
+  document.getElementById("settingsModal").style.display="none";
+}
+function sendFeedback(){
+  const text=document.getElementById("feedbackText").value.trim();
+  if(!text){
+    alert("请先输入反馈内容");
+    return;
+  }
+  alert("感谢反馈！请截图并发送邮件至 inventory@yourdomain.com");
+  document.getElementById("feedbackText").value="";
+  closeSettingsModal();
 }
 </script>
-
 </body>
 </html>
