@@ -169,6 +169,12 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
           仅在名称未修改时自动保存条码（防误触）
         </label>
       </div>
+      <div class="form-group" style="margin-top:8px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
+          <input type="checkbox" id="continuousCaptureSwitch" style="width:16px;height:16px">
+          连续拍照模式（保存后自动重拍）
+        </label>
+      </div>
       <div style="display:flex;gap:10px;margin-top:10px">
         <button onclick="importCodeDict()" style="flex:1;padding:10px;background:#20c997;color:#fff;border:none;border-radius:6px;font-size:14px">📥 导入字典</button>
         <button onclick="openCodeModal()" style="flex:1;padding:10px;background:#6f42c1;color:#fff;border:none;border-radius:6px;font-size:14px">📇 管理条码字典</button>
@@ -509,13 +515,21 @@ const saveRecord=withDB(async db=>{
   const rec={id:Date.now(),time:new Date().toLocaleString(),name:n,category:document.getElementById("inp_category").value,spec:s,color:document.getElementById("inp_color").value.trim(),qty:document.getElementById("inp_qty").value,note:document.getElementById("inp_note").value.trim(),image:tempImageData};
   await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).put(rec).onsuccess=r);
   await loadRecords(db);
-  closeFormModal();
+  
   const autoSave=document.getElementById("autoDictSwitch").checked;
   const scannedCode=document.getElementById("inp_code_display").value;
   const productName=document.getElementById("inp_name").value.trim();
   if (autoSave && scannedCode && productName && productName !== scannedCode) {
     await saveCodeMapping(scannedCode, productName);
   }
+
+  const isContinuous = document.getElementById("continuousCaptureSwitch")?.checked;
+  if (isContinuous) {
+    retakePhoto();
+  } else {
+    closeFormModal();
+  }
+  
   alert("保存成功！");
   btn.disabled=false;
 });
@@ -728,7 +742,7 @@ function cloudOcr() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  fetch("https://1443771412-ibm8f1zqky.in.ap-shanghai.tencentscf.com", {
+  fetch("https://1443771412-jg1omeqdf8.ap-shanghai.tencentscf.com", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: tempImageData }),
