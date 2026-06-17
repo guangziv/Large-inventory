@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="光子盘点">
 
-<!-- ✅ 关键库版本锁定 -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
@@ -18,20 +17,16 @@
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;}
 h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
-
 #cameraWrap{position:relative;width:100vw;height:50vh;background:#000;overflow:hidden;}
 #video{width:100%;height:100%;object-fit:cover;will-change:transform;}
-
 .focus-frame{position:absolute;top:50%;left:50%;width:260px;height:160px;transform:translate(-50%,-50%);border:2.5px solid #0ff;border-radius:10px;pointer-events:none;}
 .ocr-frame{position:absolute;top:50%;left:50%;width:240px;height:48px;transform:translate(-50%,-50%);border:2px dashed rgba(255,0,0,.85);border-radius:6px;pointer-events:none;z-index:11;}
 #realtimeOcrResult{position:absolute;top:calc(50% + 40px);left:50%;transform:translateX(-50%);width:90%;max-width:300px;background:rgba(0,0,0,.75);color:#0f0;font-size:14px;font-weight:bold;text-align:center;padding:6px 10px;border-radius:6px;z-index:12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;}
-
 #cameraActions{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);display:flex;gap:20px;z-index:10}
 #captureBtn,#scanBtn,#realtimeOcrBtn{width:72px;height:72px;border-radius:50%;border:4px solid #fff;font-size:28px;display:flex;align-items:center;justify-content:center}
 #captureBtn{background:rgba(255,255,255,.95);border-color:#07f}
 #scanBtn{background:rgba(40,167,69,.95);color:#fff;font-weight:700;font-size:26px}
 #realtimeOcrBtn{background:rgba(255,193,7,.95);color:#333;font-size:22px}
-
 .toolbar{display:flex;justify-content:space-around;padding:10px 5px;background:#111;position:sticky;bottom:0;z-index:100}
 .toolbar button{border:none;color:#fff;padding:12px 16px;border-radius:8px;font-size:14px;flex:1;margin:0 4px;max-width:120px}
 .toolbar button:nth-child(1){background:#17a2b8}
@@ -41,55 +36,42 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 .toolbar button:nth-child(5){background:#6f42c1}
 .toolbar button:nth-child(6){background:#20c997}
 .toolbar button:nth-child(7){background:#dc3545}
-
 #list{overflow-x:auto;padding:10px;display:none}
 #list table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}
 #list th,#list td{border:1px solid #ddd;padding:6px;text-align:center;white-space:nowrap}
 #list th:last-child,#list td:last-child{position:sticky;right:0;background:#fff;width:70px}
 #list td:last-child button{width:100%;padding:6px 0;font-size:16px;background:#dc3545;color:#fff;border:none;border-radius:4px}
 #list tfoot td{position:sticky;bottom:0;background:#fff;font-weight:bold;border-top:2px solid #007bff;font-size:14px}
-
 .modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:999}
 .modal{background:#fff;padding:10px;border-radius:10px;width:92%;max-width:420px;max-height:88vh;overflow-y:auto;border:1px solid #007bff}
 .modal h4{margin:5px 0 10px;font-size:17px;text-align:center;color:#007bff}
-
 .form-group{margin-bottom:8px}
 .form-group label{font-size:13px;color:#666;display:block;margin-bottom:3px}
 .form-group input,.form-group select{width:100%;height:46px;line-height:46px;padding:0 9px;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;font-size:16px}
 .form-group input:focus,.form-group select:focus{outline:none;border-color:#007bff;box-shadow:0 0 0 2px rgba(0,123,255,.2)}
-
 #imagePreview{width:100%;max-height:140px;object-fit:contain;display:block;margin-bottom:8px;border:1px solid #ddd;border-radius:6px;}
-
 .modal button.save{width:100%;background:linear-gradient(180deg,#28a745,#fd7e14);border:none;border-radius:10px;color:#fff;font-size:18px;font-weight:bold;box-shadow:0 4px 10px rgba(40,167,69,.35)}
-
 .thumbnail{width:50px;height:50px;object-fit:cover;border-radius:4px;cursor:pointer}
 #exportMenu{display:none;position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:#222;border-radius:12px;padding:6px 0;z-index:9999;min-width:180px}
 #exportMenu div{padding:14px 18px;color:#fff;font-size:15px}
 #exportMenu div:active{background:#444}
 #imgModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:999}
 #imgModal img{max-width:100%;max-height:100%}
-
 .qty-control{display:flex;align-items:center;border-radius:8px;overflow:hidden;border:1px solid #ddd;width:fit-content}
 .qty-control input{flex:1;height:46px;min-width:60px;text-align:center;border:none;font-size:16px;background:#fff;outline:none}
 .qty-btn{width:40px;height:46px;font-size:22px;font-weight:600;border:none;background:linear-gradient(180deg,#f8f9fa,#e9ecef);cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center}
 .qty-btn:first-child{border-radius:8px 0 0 8px}
 .qty-btn:last-child{border-radius:0 8px 8px 0}
-
 .list-summary{position:sticky;top:0;background:#007bff;color:#fff;padding:8px 12px;font-size:16px;font-weight:bold;z-index:10;border-radius:6px 6px 0 0;margin-bottom:-1px}
 .advanced-toggle{text-align:center;color:#007bff;font-size:15px;margin-top:10px;cursor:pointer}
 .advanced-panel{display:none;border-top:1px solid #eee;padding-top:8px;margin-top:8px}
-
 #scanner_container{width:100%;height:200px;background:#000;border-radius:6px;margin-bottom:10px;display:none}
 #scanStatus{text-align:center;font-size:14px;color:#007bff;margin-bottom:6px;min-height:22px}
-
 .code-item{display:flex;justify-content:space-between;align-items:center;padding:8px;font-size:13px;border-bottom:1px solid #eee}
 .code-item:last-child{border-bottom:none}
 .code-item span{font-weight:bold;color:#007bff}
 .code-item button{background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px}
-
 .form-btn{flex:1;padding:14px 16px;border:none;border-radius:10px;font-size:18px;font-weight:bold;box-sizing:border-box}
-
-/* ✅ 连续拍照类别栏（唯一新增 UI） */
 #categoryBar{display:none;position:fixed;bottom:62px;left:0;right:0;background:#111;padding:10px 0;z-index:95;text-align:center;}
 #categoryBar span{color:#fff;font-size:42px;font-weight:bold;letter-spacing:6px;user-select:none;}
 #categoryBar small{display:block;color:#aaa;font-size:12px;margin-top:2px}
@@ -111,7 +93,6 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
   </div>
 </div>
 
-<!-- ✅ 连续拍照类别栏 -->
 <div id="categoryBar" onclick="showCategoryPicker()">
   <span id="currentCat">床架</span>
   <small>点击切换类别</small>
@@ -143,9 +124,7 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
     <div class="form-group"><label>识别到的条码</label><input id="inp_code_display" type="text" readonly style="background:#e9ecef; font-weight:bold; color:#007bff;"></div>
     <button id="scanFileBtn">🖼️ 扫描本地图片</button>
     <input id="fileInput" type="file" accept="image/*">
-
     <img id="imagePreview" alt="拍摄的图片">
-
     <div class="form-group"><label>产品名称</label><input id="inp_name"></div>
     <div style="display:flex;gap:10px">
       <div class="form-group" style="flex:1"><label>产品类别</label>
@@ -248,7 +227,7 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
       本地 OCR (Tesseract - 离线)
     </label>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;margin-bottom:6px">
-      <input type="checkbox" id="ocrTencentSwitch" style="width:16px;height:16px">
+      <input type="checkbox" id="ocrTencentSwitch" checked style="width:16px;height:16px">
       腾讯云 OCR (高精度)
     </label>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;">
@@ -335,7 +314,6 @@ let latestOcrText = '';
 let lastTap = 0;
 let ocrWorker = null;
 
-// ✅ 闪光灯控制
 let currentVideoTrack = null;
 function updateFlashlight(enable) {
   if (!currentVideoTrack) return;
@@ -530,7 +508,6 @@ async function realTimeLocalOcr(){
     const worker = await initOcrWorker();
     const {data} = await worker.recognize(dataUrl);
     
-    // ✅ OCR 置信度过滤（防脏数据）
     if(data.text && data.confidence > 60){
       document.getElementById('inp_name').value = data.text.trim().split('\n')[0];
       realtimeOcrResultDiv.innerText = `[本地] ${data.text.trim()}`;
@@ -544,18 +521,19 @@ async function realTimeLocalOcr(){
   ocrLocalTimer=setTimeout(realTimeLocalOcr,1200);
 }
 
-/* ===== 腾讯云 OCR ===== */
+/* ===== ✅ 腾讯云 OCR（SCF 中转版 · 国内直连） ===== */
 async function realTimeTencentOcr(){
   if(!ocrTencentActive || video.paused) return;
   const start = Date.now();
-  const frame=document.querySelector('.ocr-frame');
-  const vr=video.getBoundingClientRect();
-  const fr=frame.getBoundingClientRect();
 
-  const canvas=document.createElement('canvas');
-  canvas.width=fr.width;
-  canvas.height=fr.height;
-  const ctx=canvas.getContext('2d');
+  const frame = document.querySelector('.ocr-frame');
+  const vr = video.getBoundingClientRect();
+  const fr = frame.getBoundingClientRect();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = fr.width;
+  canvas.height = fr.height;
+  const ctx = canvas.getContext('2d');
 
   ctx.drawImage(
     video,
@@ -574,24 +552,38 @@ async function realTimeTencentOcr(){
   const base64 = canvas.toDataURL('image/jpeg', 0.8);
 
   try {
-    const response = await fetch("https://1443771412-jg1omeqdf8.ap-shanghai.tencentscf.com", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: base64, type: "tencent" }),
-      mode: "cors"
-    });
+    const response = await fetch(
+      "https://1443771412-cz15m76y5z.ap-guangzhou.tencentscf.com",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: base64
+        })
+      }
+    );
+
     const result = await response.json();
-    if (result && result.TextDetections && result.TextDetections.length > 0) {
-      const text = result.TextDetections.map(i => i.DetectedText).join('');
+
+    if (
+      result &&
+      result.TextDetections &&
+      result.TextDetections.length > 0
+    ) {
+      const text = result.TextDetections
+        .map(i => i.DetectedText)
+        .join('');
+
       document.getElementById('inp_name').value = text;
       realtimeOcrResultDiv.innerText = `[腾讯] ${text}`;
       recordOcrStat('tencent', true, Date.now() - start);
     } else {
       recordOcrStat('tencent', false, Date.now() - start);
     }
-  } catch(e) {
+  } catch (e) {
     recordOcrStat('tencent', false, Date.now() - start);
   }
+
   ocrTencentTimer = setTimeout(realTimeTencentOcr, 800);
 }
 
@@ -674,7 +666,6 @@ captureBtn.onpointerdown=function(e){
   e.preventDefault();
   navigator.vibrate&&navigator.vibrate(50);
   
-  // ✅ 拍照瞬间关闭闪光灯（防过曝）
   updateFlashlight(false);
 
   ocrLocalActive = ocrTencentActive = ocrBaiduActive = false;
@@ -737,7 +728,6 @@ function retakePhoto(){
   document.getElementById("scanStatus").innerText = "";
   document.getElementById("formModal").style.display = 'none';
 
-  // ✅ 连续拍照模式下重新打开摄像头
   navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" }
   }).then(s => {
@@ -746,7 +736,6 @@ function retakePhoto(){
     updateFlashlight(document.getElementById("flashlightSwitch")?.checked || false);
   });
 
-  // ✅ 连续拍照显示类别栏
   const isContinuous = document.getElementById("continuousCaptureSwitch")?.checked;
   if (isContinuous) {
     document.getElementById("categoryBar").style.display = "block";
@@ -773,13 +762,11 @@ scanBtn.onpointerdown=e=>{
   e.preventDefault();
   if(isScanning) return;
 
-  // ✅ 连续拍照模式下禁止扫码
   if(document.getElementById("continuousCaptureSwitch")?.checked){
     alert("请先关闭连续拍照模式");
     return;
   }
   
-  // ✅ 扫码启动即暂停 OCR（防资源抢占）
   stopCamera();
   ocrLocalActive = ocrTencentActive = ocrBaiduActive = false;
   clearTimeout(ocrLocalTimer);
@@ -869,7 +856,6 @@ async function loadRecords(db){return new Promise(res=>{const list=[];const tx=d
 
 function withDB(fn){return async(...a)=>{if(!dbReady)await initDB();const db=await openDB();return fn(db,...a);};}
 
-/* ✅ 关键：图片压缩优化（清晰度提升） */
 function compressImage(base64, maxW = 2800, quality = 0.96) {
   return new Promise(res => {
     const img = new Image();
@@ -890,7 +876,6 @@ function compressImage(base64, maxW = 2800, quality = 0.96) {
   });
 }
 
-/* ===== 保存记录 ===== */
 const saveRecord=withDB(async db=>{
   const btn=document.querySelector("#formModal button.save");
   btn.disabled=true;
@@ -899,7 +884,6 @@ const saveRecord=withDB(async db=>{
   const isContinuous = document.getElementById("continuousCaptureSwitch")?.checked;
   let name = n;
 
-  // ✅ 连续拍照自动命名
   if(isContinuous){
     name = `${quickCategory}-${String(Date.now()).slice(-3)}`;
   } else if(!n){
@@ -937,7 +921,6 @@ const saveRecord=withDB(async db=>{
     await saveCodeMapping(scannedCode, productName);
   }
 
-  // ✅ 唯一震动点：保存成功
   if(navigator.vibrate){
     try { navigator.vibrate([60, 40, 60]); } catch(e) {}
   }
@@ -1131,7 +1114,6 @@ async function exportPackageZip(){
   alert("✅ ZIP 导出成功！");
 }
 
-/* ✅ Excel 导出：图片放大 + 行高适配（看清小字） */
 async function exportPackageExcel(){
   if(!records.length)return alert("❌ 导出失败：暂无数据！");
   const btn=document.querySelector(".toolbar button[onclick*='toggleExportMenu']");
@@ -1152,7 +1134,7 @@ async function exportPackageExcel(){
       {header:"码类型",width:10},
       {header:"备注",width:16}
     ];
-    const MAX_EXPORT_IMAGES = 500; // ✅ 提高到 500
+    const MAX_EXPORT_IMAGES = 500;
     for(let i=0;i<Math.min(records.length,MAX_EXPORT_IMAGES);i++){
       const r=records[i];
       ws.addRow([i+1,r.time,r.code,r.category,"",r.model,r.spec,r.color,r.qty,r.codeType === 'item' ? '单品码' : '主码',r.note]);
@@ -1162,10 +1144,10 @@ async function exportPackageExcel(){
       const imageId=workbook.addImage({base64,extension:"jpeg"});
       ws.addImage(imageId, {
         tl: { col: 4, row: i + 1 },
-        ext: { width: 220, height: 165 }, // ✅ 放大图片
+        ext: { width: 220, height: 165 },
         editAs: "absolute"
       });
-      ws.getRow(i+2).height = 130; // ✅ 行高适配
+      ws.getRow(i+2).height = 130;
     }
     const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
     Object.keys(cat).forEach(k=>{const row=ws.addRow([]);row.getCell(6).value=k+" 合计：";row.getCell(9).value=cat[k];});
@@ -1197,8 +1179,7 @@ function openSettingsModal(){
   document.getElementById("flashlightSwitch").onchange = function () {
     updateFlashlight(this.checked);
   };
-  // ✅ OCR 子开关默认开启
-  document.getElementById("ocrLocalSwitch").checked = true;
+  document.getElementById("ocrTencentSwitch").checked = true;
 }
 function closeSettingsModal(){
   document.getElementById("settingsModal").style.display="none";
@@ -1215,7 +1196,6 @@ function sendFeedback(){
   closeSettingsModal();
 }
 
-// ✅ 页面切后台自动回收资源（防耗电）
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopCamera();
