@@ -469,7 +469,17 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 
 <script>
 function escapeHtml(s){if(typeof s!=='string')return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-
+<script>
+// ===== 测试云函数连通性 =====
+fetch('https://1443771412-3g8lkm5vqv.ap-guangzhou.tencentscf.com', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code: 'P-TEST-1234-A', deviceCode: 'TEST123' })
+}).then(r => r.text()).then(t => console.log('【连通性测试】响应:', t)).catch(e => console.log('【连通性测试】错误:', e.message, e));
+// ===== 测试结束 =====
+  
+</script>
+  
 // ==================== 🔧 云函数地址 ====================
 const API_ACTIVATE = 'https://1443771412-e64noghkf3.ap-guangzhou.tencentscf.com';
 const API_VERIFY   = 'https://1443771412-jpe7tds1sv.ap-guangzhou.tencentscf.com';
