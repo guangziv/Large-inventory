@@ -12,21 +12,30 @@
 <script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f7;touch-action:none;}
 h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 #cameraWrap{position:relative;width:100vw;height:50vh;background:#000;overflow:hidden;}
 #video{width:100%;height:100%;object-fit:cover;will-change:transform;}
-.focus-frame{position:absolute;top:50%;left:50%;width:260px;height:160px;transform:translate(-50%,-50%);border:2.5px solid #0ff;border-radius:10px;pointer-events:none;}
-.ocr-frame{position:absolute;top:50%;left:50%;width:240px;height:48px;transform:translate(-50%,-50%);border:2px dashed rgba(255,0,0,.85);border-radius:6px;pointer-events:none;z-index:11;}
-#realtimeOcrResult{position:absolute;top:calc(50% + 40px);left:50%;transform:translateX(-50%);width:90%;max-width:300px;background:rgba(0,0,0,.75);color:#0f0;font-size:14px;font-weight:bold;text-align:center;padding:6px 10px;border-radius:6px;z-index:12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none;}
+.focus-frame{position:absolute;top:50%;left:50%;width:220px;height:140px;transform:translate(-50%,-50%);border:2.5px solid #0ff;border-radius:10px;animation:breath 1.5s ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1)}50%{opacity:.6;transform:translate(-50%,-50%) scale(1.05)}}
+#focusRing{position:absolute;pointer-events:none;width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.95);box-shadow:0 0 10px rgba(0,200,255,.8), inset 0 0 6px rgba(0,200,255,.6);transform:translate(-50%,-50%) scale(1.35);animation:focusAnim 0.6s ease-out forwards;z-index:30;display:none;}
+@keyframes focusAnim{0%{opacity:0;transform:translate(-50%,-50%) scale(1.8);}40%{opacity:1;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(1);}}
+#focusRing.success{border-color:#00ff88!important;box-shadow:0 0 10px rgba(0,255,136,.8),inset 0 0 6px rgba(0,255,136,.6)!important;}
+#focusRing.fail{border-color:#ff4444!important;box-shadow:0 0 10px rgba(255,68,68,.8),inset 0 0 6px rgba(255,68,68,.6)!important;}
 #cameraActions{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);display:flex;gap:20px;z-index:10}
-#captureBtn,#scanBtn,#realtimeOcrBtn{width:72px;height:72px;border-radius:50%;border:4px solid #fff;font-size:28px;display:flex;align-items:center;justify-content:center}
+#captureBtn,#scanBtn,#photoScanBtn{width:72px;height:72px;border-radius:50%;border:4px solid #fff;font-size:28px;display:flex;align-items:center;justify-content:center}
 #captureBtn{background:rgba(255,255,255,.95);border-color:#07f}
 #scanBtn{background:rgba(40,167,69,.95);color:#fff;font-weight:700;font-size:26px}
-#realtimeOcrBtn{background:rgba(255,193,7,.95);color:#333;font-size:22px}
+#photoScanBtn{background:rgba(40,167,69,.95);color:#fff;font-weight:700;font-size:28px;display:none;flex-direction:column;align-items:center;justify-content:center;line-height:1;gap:2px}
+#photoScanBtn small{font-size:11px;font-weight:400}
+#lightningBtn{position:absolute;right:24px;top:50%;transform:translateY(-50%);width:68px;height:68px;border-radius:50%;border:3px solid rgba(255,255,255,.9);background:linear-gradient(135deg,#00e5ff,#0088cc);color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 0 rgba(0,229,255,0.7),0 6px 18px rgba(0,136,204,0.5);z-index:15;transition:transform .15s ease,box-shadow .15s ease;animation:lightningPulse 2s infinite;}
+#lightningBtn:active{transform:translateY(-50%) scale(0.9);box-shadow:0 2px 8px rgba(0,136,204,0.3);}
+#lightningBtn.locked{background:#666!important;box-shadow:none;animation:none;}
+#lightningBtn.locked::after{content:'🔒';position:absolute;top:6px;right:6px;font-size:14px;line-height:1;}
+@keyframes lightningPulse{0%{box-shadow:0 0 0 0 rgba(0,229,255,0.6),0 6px 18px rgba(0,136,204,0.5);}50%{box-shadow:0 0 0 10px rgba(0,229,255,0),0 6px 18px rgba(0,136,204,0.5);}100%{box-shadow:0 0 0 0 rgba(0,229,255,0.6),0 6px 18px rgba(0,136,204,0.5);}}
+#endLightningBtn{position:fixed;bottom:100px;right:20px;width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:#dc3545;color:#fff;font-size:18px;font-weight:bold;z-index:200;box-shadow:0 4px 12px rgba(220,53,69,.5);display:none}
 .toolbar{display:flex;justify-content:space-around;padding:10px 5px;background:#111;position:sticky;bottom:0;z-index:100}
 .toolbar button{border:none;color:#fff;padding:12px 16px;border-radius:8px;font-size:14px;flex:1;margin:0 4px;max-width:120px}
 .toolbar button:nth-child(1){background:#17a2b8}
@@ -42,6 +51,7 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 #list th:last-child,#list td:last-child{position:sticky;right:0;background:#fff;width:70px}
 #list td:last-child button{width:100%;padding:6px 0;font-size:16px;background:#dc3545;color:#fff;border:none;border-radius:4px}
 #list tfoot td{position:sticky;bottom:0;background:#fff;font-weight:bold;border-top:2px solid #007bff;font-size:14px}
+#list tr.pending-row{background:#fff9c4!important;}
 .modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:999}
 .modal{background:#fff;padding:10px;border-radius:10px;width:92%;max-width:420px;max-height:88vh;overflow-y:auto;border:1px solid #007bff}
 .modal h4{margin:5px 0 10px;font-size:17px;text-align:center;color:#007bff}
@@ -49,16 +59,20 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 .form-group label{font-size:13px;color:#666;display:block;margin-bottom:3px}
 .form-group input,.form-group select{width:100%;height:46px;line-height:46px;padding:0 9px;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;font-size:16px}
 .form-group input:focus,.form-group select:focus{outline:none;border-color:#007bff;box-shadow:0 0 0 2px rgba(0,123,255,.2)}
-#imagePreview{width:100%;max-height:140px;object-fit:contain;display:block;margin-bottom:8px;border:1px solid #ddd;border-radius:6px;}
+#previewImg{max-width:100%;max-height:140px;object-fit:contain;margin-bottom:8px;border-radius:6px;border:1px solid #ddd;display:block;margin-left:auto;margin-right:auto}
 .modal button.save{width:100%;background:linear-gradient(180deg,#28a745,#fd7e14);border:none;border-radius:10px;color:#fff;font-size:18px;font-weight:bold;box-shadow:0 4px 10px rgba(40,167,69,.35)}
+.modal button.save:active{transform:scale(.98)}
 .thumbnail{width:50px;height:50px;object-fit:cover;border-radius:4px;cursor:pointer}
 #exportMenu{display:none;position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:#222;border-radius:12px;padding:6px 0;z-index:9999;min-width:180px}
-#exportMenu div{padding:14px 18px;color:#fff;font-size:15px}
+#exportMenu div{padding:14px 18px;color:#fff;font-size:15px;position:relative}
 #exportMenu div:active{background:#444}
+#exportMenu div.locked{opacity:.4;pointer-events:none;}
+#exportMenu div.locked::after{content:'🔒';position:absolute;right:14px;font-size:13px;}
 #imgModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:999}
 #imgModal img{max-width:100%;max-height:100%}
 .qty-control{display:flex;align-items:center;border-radius:8px;overflow:hidden;border:1px solid #ddd;width:fit-content}
 .qty-control input{flex:1;height:46px;min-width:60px;text-align:center;border:none;font-size:16px;background:#fff;outline:none}
+.qty-control input::-webkit-inner-spin-button,.qty-control input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .qty-btn{width:40px;height:46px;font-size:22px;font-weight:600;border:none;background:linear-gradient(180deg,#f8f9fa,#e9ecef);cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center}
 .qty-btn:first-child{border-radius:8px 0 0 8px}
 .qty-btn:last-child{border-radius:0 8px 8px 0}
@@ -66,36 +80,144 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 .advanced-toggle{text-align:center;color:#007bff;font-size:15px;margin-top:10px;cursor:pointer}
 .advanced-panel{display:none;border-top:1px solid #eee;padding-top:8px;margin-top:8px}
 #scanner_container{width:100%;height:200px;background:#000;border-radius:6px;margin-bottom:10px;display:none}
+#scanner_container video{width:100%;height:100%;object-fit:cover}
 #scanStatus{text-align:center;font-size:14px;color:#007bff;margin-bottom:6px;min-height:22px}
-.code-item{display:flex;justify-content:space-between;align-items:center;padding:8px;font-size:13px;border-bottom:1px solid #eee}
-.code-item:last-child{border-bottom:none}
-.code-item span{font-weight:bold;color:#007bff}
-.code-item button{background:#dc3545;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px}
 .form-btn{flex:1;padding:14px 16px;border:none;border-radius:10px;font-size:18px;font-weight:bold;box-sizing:border-box}
-#categoryBar{display:none;position:fixed;bottom:62px;left:0;right:0;background:#111;padding:10px 0;z-index:95;text-align:center;}
+#categoryBar{display:none;position:fixed;bottom:62px;left:0;right:0;background:#111;padding:10px 0;z-index:95;text-align:center;cursor:pointer;}
 #categoryBar span{color:#fff;font-size:42px;font-weight:bold;letter-spacing:6px;user-select:none;}
 #categoryBar small{display:block;color:#aaa;font-size:12px;margin-top:2px}
+.lightning-simple .form-group:not(.qty-form-group){display:none!important;}
+.lightning-simple .advanced-toggle,.lightning-simple .advanced-panel{display:none!important;}
+.lightning-simple #scanFileBtn,.lightning-simple #modalPhotoScanBtn{display:none!important;}
+.lightning-simple #scanner_container{display:none!important;}
+.lightning-simple #scanStatus{display:none!important;}
+.lightning-simple #previewImg{margin-bottom:0;}
+#lightningCountTip{position:fixed;bottom:180px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:28px;font-weight:600;padding:8px 20px;border-radius:20px;display:none;z-index:9999}
+#categoryModal .modal{margin-left:auto;margin-right:20px;max-width:220px;}
+#categoryModal .category-grid{display:grid;grid-template-columns:repeat(1,1fr);gap:10px;padding:10px 0;}
+#categoryModal .category-grid button{padding:14px 10px;font-size:16px;font-weight:bold;border:1px solid #ddd;border-radius:8px;background:#f8f9fa;cursor:pointer;}
+#versionTag{text-align:center;font-size:12px;color:#666;margin-bottom:4px;}
+#versionTag span{background:#007bff;color:#fff;padding:2px 8px;border-radius:10px;margin-right:4px;}
+#versionTag small{color:#28a745;}
+.upgrade-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;}
+.upgrade-table th,.upgrade-table td{border:1px solid #ddd;padding:6px;text-align:center;}
+.upgrade-table th{background:#f8f9fa;font-weight:bold;}
+.upgrade-table tr.current{background:#e7f3ff;}
+#machineCodeBox{background:#f8f9fa;border:1px dashed #007bff;border-radius:6px;padding:8px;margin:10px 0;text-align:center;font-size:13px;word-break:break-all;color:#007bff;font-weight:bold;display:flex;align-items:center;justify-content:center;gap:8px;}
+.copy-btn{background:#6c757d;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;}
+#activateInput{width:100%;padding:10px;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:8px;}
+.modal-btn-group{display:flex;gap:8px;margin-top:8px;}
+.modal-btn-group button{flex:1;padding:12px;border:none;border-radius:6px;font-size:16px;font-weight:bold;}
+#cancelBtn{background:#6c757d;color:#fff;}
+#activateBtn{background:#007bff;color:#fff;}
+#migrateTip{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px;margin:10px 0;font-size:12px;color:#856404;text-align:center;}
+#devPanel{display:none;position:fixed;bottom:20px;right:20px;background:#1a1a2e;color:#fff;padding:20px;border-radius:16px;z-index:999999;width:300px;box-shadow:0 20px 60px rgba(0,0,0,0.5);font-family:-apple-system,sans-serif;}
+#devPanelHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+#devPanelHeader h4{margin:0;font-size:16px;color:#fff;user-select:none;-webkit-user-select:none;}
+#devPanelHeader span{font-size:11px;color:#6b7280;background:#2d2d44;padding:2px 10px;border-radius:20px;}
+.dev-btn-group{display:flex;flex-direction:column;gap:8px;}
+.dev-btn-group button{width:100%;padding:12px;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;}
+#devForceExpire{background:#ef4444;color:#fff;}
+#devSetRemain3{background:#8b5cf6;color:#fff;}
+#devSetRemain1{background:#8b5cf6;color:#fff;}
+#devResetStatus{background:#95a5a6;color:#ecf0f1;}
+.dev-input-group{margin-top:12px;padding-top:12px;border-top:1px solid #374151;display:flex;gap:8px;}
+.dev-input-group input{flex:1;padding:8px 12px;border-radius:5px;border:1px solid #4b5563;background:#2d2d44;color:#fff;font-size:13px;}
+.dev-input-group button{padding:8px 16px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;}
+#devCloseBtn{width:100%;padding:8px;margin-top:8px;background:transparent;color:#6b7280;border:1px solid #4b5563;border-radius:8px;cursor:pointer;font-size:13px;}
+#devStatus{margin-top:10px;font-size:12px;color:#9ca3af;text-align:center;}
+.dev-footer{margin-top:6px;font-size:10px;color:#4b5563;text-align:center;border-top:1px solid #2d2d44;padding-top:6px;}
+.batch-actions{display:flex;gap:8px;padding:8px;background:#f8f9fa;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:5;}
+.batch-actions button{flex:1;padding:8px;font-size:13px;border:none;borderRadius:6px;cursor:pointer;}
+.batch-actions .delete-btn{background:#dc3545;color:#fff;}
+.batch-actions .edit-btn{background:#007bff;color:#fff;}
+.checkbox-cell{width:40px;text-align:center;}
+#trialBanner{display:none;background:#ff9800;color:#fff;padding:8px 12px;border-radius:6px;margin-bottom:8px;font-size:14px;align-items:center;}
+#trialBanner button{float:right;background:#fff;color:#ff9800;border:none;padding:2px 10px;border-radius:12px;font-weight:bold;}
+#exportProgressMask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;justify-content:center;align-items:center;}
+#exportProgressBox{background:#fff;padding:24px 20px;border-radius:14px;width:82%;max-width:340px;text-align:center;}
+#exportProgressBarWrap{width:100%;height:14px;background:#e9ecef;border-radius:7px;margin:14px 0 8px;overflow:hidden;}
+#exportProgressBar{height:100%;background:linear-gradient(90deg,#007bff,#00c6ff);width:0%;transition:.25s;}
+#exportProgressText{font-size:14px;color:#333;}
+.product-group{background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;margin-bottom:8px;overflow:hidden;}
+.product-group-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#e7f3ff;cursor:pointer;}
+.product-group-header span{font-weight:bold;color:#007bff;font-size:14px;}
+.product-group-header .badge{background:#007bff;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;}
+.product-group-body{padding:8px 12px;display:none;}
+.product-group-body.open{display:block;}
+.code-tag{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 8px;margin:4px 4px 4px 0;font-size:12px;}
+.code-tag .remove-code{color:#dc3545;font-weight:bold;cursor:pointer;border:none;background:none;font-size:14px;padding:0 2px;}
+.add-code-row{display:flex;gap:6px;margin-top:6px;}
+.add-code-row input{flex:1;height:36px;padding:0 8px;border:1px solid #ddd;border-radius:6px;font-size:14px;}
+.add-code-row button{height:36px;padding:0 12px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:13px;white-space:nowrap;}
+.new-product-row{display:flex;gap:6px;margin-bottom:10px;}
+.new-product-row input{flex:1;height:40px;padding:0 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;}
+.new-product-row button{height:40px;padding:0 14px;background:#28a745;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:bold;}
+.about-section{text-align:center;padding:12px 0;border-bottom:1px solid #eee;margin-bottom:12px;}
+.about-version{font-size:20px;font-weight:bold;color:#007bff;margin-bottom:8px;}
+.about-changelog{display:inline-block;padding:8px 16px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;}
+.about-changelog:active{transform:scale(.98);}
+.activate-card{background:#e7f3ff;border:1px solid #007bff;border-radius:10px;padding:14px;margin-bottom:14px;}
+.activate-card-row{display:flex;justify-content:space-between;align-items:center;}
+.activate-card-title{font-size:15px;font-weight:bold;color:#007bff;margin-bottom:4px;}
+.activate-card-status{font-size:12px;color:#666;}
+.lazy-img{opacity:0;transition:opacity 0.3s;}
+.lazy-img[src]{opacity:1;}
+
+#expiredBanner{display:none;background:#dc3545;color:#fff;padding:10px 14px;text-align:center;font-size:14px;position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(220,53,69,.4)}
+#expiredBanner button{margin-left:10px;background:#fff;color:#dc3545;border:none;padding:4px 12px;border-radius:12px;font-weight:bold;font-size:13px}
+
+#trialRemindModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:9999}
+#trialRemindModal .modal{background:#fff;padding:20px;border-radius:12px;width:86%;max-width:340px;text-align:center}
+#trialRemindModal .icon{font-size:48px;margin-bottom:8px}
+#trialRemindModal h4{margin:0 0 10px;font-size:18px}
+#trialRemindModal p{font-size:14px;color:#555;line-height:1.7;margin:0 0 16px}
+#trialRemindModal .btns{display:flex;gap:10px}
+#trialRemindModal .btns button{flex:1;padding:11px;border:none;border-radius:8px;font-size:14px;font-weight:bold}
+#trialRemindModal .later{background:#e9ecef;color:#666}
+#trialRemindModal .upgrade{background:#ff9800;color:#fff}
+#trialRemindModal .dont-show{margin-top:12px;font-size:12px;color:#999;display:flex;align-items:center;justify-content:center;gap:4px}
 </style>
 </head>
 
 <body>
-<h3>📦 光子盘点</h3>
+<div id="versionTag">光子盘点 <span id="versionText">基础版</span> <small id="deviceStatus">设备：已绑定</small></div>
+<h3 id="devTrigger">📦 光子盘点</h3>
 
 <div id="cameraWrap">
   <video id="video" autoplay playsinline></video>
   <div class="focus-frame"></div>
-  <div class="ocr-frame"></div>
-  <div id="realtimeOcrResult">等待识别...</div>
+  <div id="focusRing"></div>
   <div id="cameraActions">
-    <button id="scanBtn">新</button>
+    <button id="scanBtn">扫</button>
+    <button id="photoScanBtn">🖼️<br><small>识图</small></button>
     <button id="captureBtn">📸</button>
-    <button id="realtimeOcrBtn">👁️ OCR</button>
   </div>
+  <button id="lightningBtn">⚡</button>
 </div>
 
-<div id="categoryBar" onclick="showCategoryPicker()">
+<input id="photoScanInput" type="file" accept="image/*" capture="environment" style="display:none">
+
+<button id="endLightningBtn">⏹<br>结束</button>
+<div id="lightningCountTip">📦 0</div>
+
+<div id="categoryBar" onclick="showCategoryModal()">
   <span id="currentCat">床架</span>
   <small>点击切换类别</small>
+</div>
+
+<div class="modal-mask" id="categoryModal">
+  <div class="modal">
+    <h4>选择类别</h4>
+    <div class="category-grid">
+      <button onclick="selectCategory('床架')">床架</button>
+      <button onclick="selectCategory('床垫')">床垫</button>
+      <button onclick="selectCategory('床头柜')">床头柜</button>
+      <button onclick="selectCategory('沙发')">沙发</button>
+      <button onclick="selectCategory('小件')">小件</button>
+    </div>
+    <button onclick="closeCategoryModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">取消</button>
+  </div>
 </div>
 
 <div class="toolbar">
@@ -103,17 +225,17 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
   <button onclick="toggleList()">📋 清单</button>
   <button onclick="createBackup()">📥 备份</button>
   <button onclick="toggleExportMenu()">📤 导出</button>
-  <button onclick="openRestoreModal()">♻️ 恢复</button>
   <button onclick="openSettingsModal()">🔧 设置</button>
+  <button onclick="openRestoreModal()">♻️ 恢复</button>
   <button onclick="clearAll()">🗑️ 清空</button>
 </div>
 
 <div id="exportMenu">
   <div onclick="exportPackageZip()">📦 导出数据包</div>
   <div onclick="exportPackageExcel()">📷 导出带图 Excel</div>
-  <div onclick="exportCodeDict()">📕 导出条码字典</div>
+  <div id="menuExportDict" onclick="exportCodeDict()">📕 导出条码字典</div>
   <div onclick="exportInventoryCSV()">🧾 导出盘点 CSV</div>
-  <div onclick="exportCodeDictCSV()">🧾 导出条码字典 CSV</div>
+  <div id="menuExportDictCSV" onclick="exportCodeDictCSV()">🧾 导出条码字典 CSV</div>
 </div>
 
 <div class="modal-mask" id="formModal">
@@ -121,10 +243,17 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
     <h4>商品信息录入</h4>
     <div id="scanner_container"></div>
     <div id="scanStatus"></div>
-    <div class="form-group"><label>识别到的条码</label><input id="inp_code_display" type="text" readonly style="background:#e9ecef; font-weight:bold; color:#007bff;"></div>
-    <button id="scanFileBtn">🖼️ 扫描本地图片</button>
+    <div class="form-group">
+      <label>识别到的条码</label>
+      <input id="inp_code_display" type="text" readonly style="background:#e9ecef;font-weight:bold;color:#007bff;">
+    </div>
     <input id="fileInput" type="file" accept="image/*">
-    <img id="imagePreview" alt="拍摄的图片">
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+      <button id="scanFileBtn" style="flex:1;height:46px;font-size:14px;font-weight:bold;border-radius:6px;background:#6c757d;color:#fff;border:none;display:flex;align-items:center;justify-content:center;">📂 扫描本地图片</button>
+      <button id="modalPhotoScanBtn" style="flex:1;height:46px;font-size:14px;font-weight:bold;border-radius:6px;background:rgba(40,167,69,.95);color:#fff;border:none;display:flex;align-items:center;justify-content:center;">🖼️ 拍照识别</button>
+    </div>
+    <input id="modalPhotoInput" type="file" accept="image/*" capture="environment" style="display:none">
+    <img id="previewImg">
     <div class="form-group"><label>产品名称</label><input id="inp_name"></div>
     <div style="display:flex;gap:10px">
       <div class="form-group" style="flex:1"><label>产品类别</label>
@@ -140,8 +269,10 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
     </div>
     <div class="form-group" id="customSpecGroup" style="display:none"><label>自定义规格</label><input id="inp_custom_spec"></div>
     <div style="display:flex;gap:10px">
-      <div class="form-group" style="flex:1"><label>颜色</label><input id="inp_color"></div>
-      <div class="form-group" style="flex:1"><label>数量</label>
+      <div class="form-group" style="flex:1"><label>颜色</label>
+        <input id="inp_color" type="text" placeholder="如：默认" style="width:100%;height:46px;line-height:46px;padding:0 9px;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;font-size:16px">
+      </div>
+      <div class="form-group qty-form-group" style="flex:1"><label>数量</label>
         <div class="qty-control">
           <div class="qty-btn" onclick="changeQty(-1)">−</div>
           <input id="inp_qty" type="number" value="1" inputmode="numeric" min="1" step="1">
@@ -154,7 +285,7 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
       <div class="form-group" style="margin-top:8px">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
           <input type="checkbox" id="autoDictSwitch" checked style="width:16px;height:16px">
-          仅在名称未修改时自动保存条码（防误触）
+          自动保存到条码字典
         </label>
       </div>
       <div style="display:flex;gap:10px;margin-top:10px">
@@ -172,10 +303,16 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 </div>
 
 <div class="modal-mask" id="codeModal">
-  <div class="modal">
-    <h4>条码字典管理</h4>
-    <div class="form-group"><input id="codeSearch" placeholder="搜索条码或名称..." oninput="searchCode()"></div>
-    <div id="codeListContainer"></div>
+  <div class="modal" style="max-width:460px;">
+    <h4>📇 条码字典管理</h4>
+    <div class="new-product-row">
+      <input id="newProductName" placeholder="输入产品名称（如：望月CX2603）">
+      <button onclick="createNewProduct()">＋ 新建</button>
+    </div>
+    <div class="form-group">
+      <input id="codeSearch" placeholder="🔍 搜索产品名称或条码..." oninput="renderProductGroups()">
+    </div>
+    <div id="productGroupsContainer" style="max-height:45vh;overflow-y:auto;"></div>
     <button onclick="closeCodeModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">关闭</button>
   </div>
 </div>
@@ -191,1047 +328,899 @@ h3{text-align:center;font-size:24px;font-weight:bold;margin:10px 0}
 
 <div class="modal-mask" id="settingsModal">
   <div class="modal">
+    <div class="about-section">
+      <div class="about-version">2026正式版（Q2）</div>
+      <button class="about-changelog" onclick="window.open('https://ima.qq.com/wiki/?shareId=2412fbc1c3440453718920ad4b9bad6fcedf4a3469c25e4911afef07ee73326ef','_blank')">更新日志</button>
+    </div>
+    <div class="activate-card">
+      <div class="activate-card-row">
+        <div>
+          <div class="activate-card-title">💎 订阅服务</div>
+          <div class="activate-card-status" id="activationStatusText">当前：免费版（功能受限）</div>
+        </div>
+        <button onclick="showUpgradeModal()" style="padding:8px 16px;background:#007bff;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:bold;white-space:nowrap;">激活 / 升级</button>
+      </div>
+    </div>
     <h4>设置与反馈</h4>
     <div class="form-group">
       <label>问题反馈 / 建议</label>
       <textarea id="feedbackText" rows="4" style="width:100%;border:1px solid #ddd;border-radius:6px;padding:8px;font-size:14px"></textarea>
     </div>
     <div style="font-size:13px;color:#666;margin-bottom:10px">
-      可发送至：guangzi618@qq.com<br>
-      联系微信：gz17618
+      可发送至：guangzi618@qq.com<br>联系微信：gz17618
     </div>
-    <button onclick="sendFeedback()" style="width:100%;padding:10px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:14px">
-      📮 提交反馈
-    </button>
-
+    <button onclick="sendFeedback()" style="width:100%;padding:10px;background:#007bff;color:#fff;border:none;border-radius:6px;font-size:14px">📮 提交反馈</button>
     <hr style="margin:12px 0">
     <div class="form-group" style="margin-top:8px">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
         <input type="checkbox" id="continuousCaptureSwitch" style="width:16px;height:16px">
-        连续拍照模式（开启后与“重拍”效果一致）
+        ⚡ 极速初盘（闪电拍模式）
       </label>
     </div>
-
     <hr style="margin:12px 0">
     <div class="form-group" style="margin-top:8px">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333">
         <input type="checkbox" id="flashlightSwitch" style="width:16px;height:16px">
-        🔦 开启闪光灯（拍照 / 扫码 / OCR）
+        🔦 开启闪光灯
       </label>
     </div>
-
     <hr style="margin:12px 0">
-    <div style="font-size:13px;color:#333;font-weight:bold;margin-bottom:8px">实时 OCR 接口选择</div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;margin-bottom:6px">
-      <input type="checkbox" id="ocrLocalSwitch" style="width:16px;height:16px">
-      本地 OCR (Tesseract - 离线)
-    </label>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;margin-bottom:6px">
-      <input type="checkbox" id="ocrTencentSwitch" checked style="width:16px;height:16px">
-      腾讯云 OCR (高精度)
-    </label>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;">
-      <input type="checkbox" id="ocrBaiduSwitch" style="width:16px;height:16px">
-      百度云 OCR (备用)
-    </label>
-
-    <hr style="margin:12px 0">
-    <div style="font-size:13px;color:#333;font-weight:bold;margin-bottom:8px">扫码匹配范围</div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;margin-bottom:6px">
-      <input type="checkbox" id="onlyMainCodeSwitch" style="width:16px;height:16px">
-      仅匹配主码
-    </label>
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;">
-      <input type="checkbox" id="onlyItemCodeSwitch" style="width:16px;height:16px">
-      仅匹配单品码
-    </label>
-
-    <hr style="margin:12px 0">
-    <div id="ocrStatsDisplay" style="font-size:12px;color:#666;background:#f8f9fa;padding:8px;border-radius:6px;line-height:1.6;">
-      加载中...
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button onclick="logoutDevice()" style="flex:1;padding:10px;background:#dc3545;color:#fff;border:none;border-radius:6px;font-size:14px">🚪 注销设备</button>
+      <button onclick="location.href='https://guangziv.github.io/Inventory/'" style="flex:1;padding:10px;background:#17a2b8;color:#fff;border:none;border-radius:6px;font-size:14px">🔄 检查更新</button>
     </div>
+    <button onclick="closeSettingsModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">关闭</button>
+  </div>
+</div>
 
-    <hr style="margin:12px 0">
-    <button onclick="location.href='https://guangziv.github.io/Inventory/'" style="width:100%;padding:10px;background:#17a2b8;color:#fff;border:none;border-radius:6px;font-size:14px">
-      🔄 检查最新版本
-    </button>
-    <button onclick="closeSettingsModal()" style="width:100%;padding:10px;margin-top:10px;background:#ccc;border:none;border-radius:6px">
-      关闭
-    </button>
+<div class="modal-mask" id="upgradeModal">
+  <div class="modal">
+    <h4>🚀 升级专业版</h4>
+    <div id="machineCodeBox"><span>设备机器码：</span><span id="modalMachineCode"></span><button class="copy-btn" onclick="copyMachineCode()">复制</button></div>
+    <table class="upgrade-table">
+      <thead>
+        <tr>
+          <th>版本</th>
+          <th>价格</th>
+          <th>权益说明</th>
+          <th>换设备</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>基础版本</td>
+          <td>¥0</td>
+          <td>永久免费，含基础扫码录入、50条/单限制、CSV纯文本导出</td>
+          <td>不支持</td>
+        </tr>
+        <tr style="background:#e8f5e9">
+          <td>⏳ 试用版本</td>
+          <td>¥0</td>
+          <td>30天专业版全功能体验（含闪电拍、无限盘点、带图导出），到期自动降级</td>
+          <td>不支持</td>
+        </tr>
+        <tr>
+          <td>月度订阅</td>
+          <td>¥39/月</td>
+          <td>含闪电拍、无限盘点、批量操作、导出带图片</td>
+          <td>不可换</td>
+        </tr>
+        <tr style="background:#fff8e1">
+          <td>🔥 年度订阅</td>
+          <td>¥299/年</td>
+          <td>含全部功能，月均¥24.9，免费获取最新版</td>
+          <td>2次/年</td>
+        </tr>
+        <tr style="background:#f3e8ff">
+          <td>🏆 终身授权</td>
+          <td>¥799</td>
+          <td>一次性买断，终身免费更新，版本持续优化<br><span style="font-size:11px;color:#d32f2f;">⚠️ 限时发售，随时下架</span></td>
+          <td>不限次</td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="migrateTip" style="display:none;"></div>
+    <input id="activateInput" placeholder="请输入激活码（格式：P-XXXX-YYYY-ZZ）">
+    <div class="modal-btn-group"><button id="cancelBtn" onclick="closeUpgradeModal()">取消</button><button id="activateBtn" onclick="activateLicense()">立即激活</button></div>
+    <div style="font-size:12px;color:#666;margin-top:8px;text-align:center;">📩 开通订阅请联系微信：<strong style="color:#007bff;">gz17618</strong><br>请提供上方「设备机器码」以获取激活码</div>
+  </div>
+</div>
+
+<div id="trialRemindModal">
+  <div class="modal">
+    <div class="icon">&#x23F0;</div>
+    <h4 id="trialRemindTitle" style="color:#ff9800"></h4>
+    <p id="trialRemindText"></p>
+    <div class="btns">
+      <button class="later" onclick="closeTrialRemind()">稍后再说</button>
+      <button class="upgrade" onclick="closeTrialRemind();showUpgradeModal()">立即激活</button>
+    </div>
+    <div class="dont-show">
+      <input type="checkbox" id="dontShowAgain" style="width:14px;height:14px"> 本次试用期间不再提醒
+    </div>
   </div>
 </div>
 
 <div id="imgModal" onclick="this.style.display='none'"><img id="bigImg"></div>
-<div id="list"></div>
+<div id="expiredBanner">⚠️ 试用已结束，部分功能已暂停 <button onclick="showUpgradeModal()">立即激活</button></div>
+<div id="list"><div id="trialBanner">⏳ 专业版试用剩余 <b id="trialDays">7</b> 天<button onclick="showUpgradeModal()">立即激活</button></div></div>
+
+<div id="exportProgressMask">
+  <div id="exportProgressBox">
+    <div style="font-size:16px;font-weight:bold;color:#007bff;">📤 正在导出</div>
+    <div id="exportProgressBarWrap"><div id="exportProgressBar"></div></div>
+    <div id="exportProgressText">准备中...</div>
+  </div>
+</div>
+
+<div id="devPanel" onclick="if(event.target===this)this.style.display='none'">
+  <div id="devPanelHeader"><h4>🧪 开发者面板</h4><span>双击标题触发</span></div>
+  <div class="dev-btn-group">
+    <button id="devForceExpire" onclick="window.forceExpired()">⏳ 模拟到期（真实降级）</button>
+    <button id="devSetRemain3" onclick="window.setRemainDays(3)">🎯 设为剩余3天（仅测提醒）</button>
+    <button id="devSetRemain1" onclick="window.setRemainDays(1)">🎯 设为剩余1天（仅测提醒）</button>
+    <button id="devResetStatus" onclick="window.resetToNormal()">🔄 恢复正常</button>
+  </div>
+  <div class="dev-input-group"><input id="devCodeInput" placeholder="输入激活码测试"><button onclick="window.testActivate()">验证</button></div>
+  <button id="devCloseBtn" onclick="document.getElementById('devPanel').style.display='none'">关闭</button>
+  <div id="devStatus"></div>
+  <div class="dev-footer">⚠️ 仅用于测试过期流程</div>
+</div>
 
 <script>
-/* ========== OCR 统计系统 ========== */
-let ocrStats = {
-  local: { calls: 0, success: 0, fail: 0, totalTime: 0 },
-  tencent: { calls: 0, success: 0, fail: 0, totalTime: 0 },
-  baidu: { calls: 0, success: 0, fail: 0, totalTime: 0 }
+function escapeHtml(s){if(typeof s!=='string')return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// ==================== 🔧 云函数地址 ====================
+const API_ACTIVATE = 'https://1443771412-e64noghkf3.ap-guangzhou.tencentscf.com';
+const API_VERIFY   = 'https://1443771412-jpe7tds1sv.ap-guangzhou.tencentscf.com';
+// ======================================================
+
+const LICENSE_KEY='photon_license',DEVICE_KEY='photon_device',TRIAL_KEY='photon_trial_start';
+const LIMITS={
+  basic:{maxRecords:50,maxCodeDict:50,allowLightning:false,allowBatchOps:false,allowRichExport:false},
+  monthly:{maxRecords:Infinity,maxCodeDict:Infinity,allowLightning:true,allowBatchOps:true,allowRichExport:true},
+  yearly:{maxRecords:Infinity,maxCodeDict:Infinity,allowLightning:true,allowBatchOps:true,allowRichExport:true},
+  lifetime:{maxRecords:Infinity,maxCodeDict:Infinity,allowLightning:true,allowBatchOps:true,allowRichExport:true}
 };
 
-function recordOcrStat(source, success, duration) {
-  const s = ocrStats[source];
-  s.calls++;
-  if (success) s.success++; else s.fail++;
-  s.totalTime += duration;
-}
+function generateMachineCode(){return btoa(navigator.userAgent+screen.width+screen.height+navigator.language).replace(/[^a-zA-Z0-9]/g,'').substring(0,16).toUpperCase();}
+function getDeviceCode(){let d=localStorage.getItem(DEVICE_KEY);if(!d){d=generateMachineCode();localStorage.setItem(DEVICE_KEY,d);}return d;}
 
-function updateOcrStatsDisplay() {
-  const d = document.getElementById('ocrStatsDisplay');
-  if (!d) return;
-  d.innerHTML = `
-    <b>本地 OCR：</b> ${ocrStats.local.calls}次 | 成功 ${ocrStats.local.success} | 失败 ${ocrStats.local.fail}<br>
-    <b>腾讯云：</b> ${ocrStats.tencent.calls}次 | 成功 ${ocrStats.tencent.success} | 失败 ${ocrStats.tencent.fail}<br>
-    <b>百度云：</b> ${ocrStats.baidu.calls}次 | 成功 ${ocrStats.baidu.success} | 失败 ${ocrStats.baidu.fail}
-  `;
-}
+function initTrial(){let t=localStorage.getItem(TRIAL_KEY);if(!t){t=Date.now().toString();localStorage.setItem(TRIAL_KEY,t);}return Number(t);}
+function isInTrial(){const s=initTrial();const n=Date.now();const x=Math.max(n,s);return(x-s)<=30*24*60*60*1000;}
 
-/* ========== 基础工具 ========== */
-function escapeHtml(s){
-  if(typeof s !== 'string') return '';
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
+function getLicense(){const l=localStorage.getItem(LICENSE_KEY);return l?JSON.parse(l):null;}
+function saveLicense(d){localStorage.setItem(LICENSE_KEY,JSON.stringify(d));}
 
-/* ========== 全局变量 ========== */
-let lastX=0,lastY=0;
-const DB_NAME="PhotonInventoryDB",DB_VER=3,STORE_REC="records",STORE_BAK="backups",STORE_CODE="codes";
-let records=[],dbReady=false,tempImageData="",scale=1,offsetX=0,offsetY=0,rotation=0,listVisible=false,isScanning=false,allCodesCache=[],currentScanner=null;
-let listPage=0, PAGE_SIZE=50;
-let isMultiTouch = false;
-let lastDist = 0;
-let lastAngle = 0;
-
-let realtimeOcrActive = false;
-let ocrLocalActive = false, ocrTencentActive = false, ocrBaiduActive = false;
-let ocrLocalTimer = null, ocrTencentTimer = null, ocrBaiduTimer = null;
-
-let latestOcrText = '';
-let lastTap = 0;
-let ocrWorker = null;
-
-let currentVideoTrack = null;
-function updateFlashlight(enable) {
-  if (!currentVideoTrack) return;
-  if (!currentVideoTrack.getCapabilities?.()?.torch) return;
-  try {
-    currentVideoTrack.applyConstraints({
-      advanced: [{ torch: enable }]
-    });
-  } catch (e) {
-    console.warn("闪光灯不支持", e);
+function validateLicense(){
+  const lic=getLicense(),dc=getDeviceCode();
+  if(!lic){saveLicense({machineCode:dc,version:'basic',expire:null,deviceCode:dc,migrateCount:0,lastMigrateYear: new Date().getFullYear()});return{valid:true,version:'basic'};}
+  if(lic.version!=='basic' && lic.migrateCount===undefined){
+    lic.migrateCount=0;
+    lic.lastMigrateYear=lic.lastMigrateYear||new Date().getFullYear();
+    saveLicense(lic);
   }
-}
-
-async function initOcrWorker() {
-  if (!ocrWorker) {
-    ocrWorker = await Tesseract.createWorker('chi_sim+eng', 1, {
-      logger: m => console.log(m)
-    });
-  }
-  return ocrWorker;
-}
-
-const video=document.getElementById("video"),wrap=document.getElementById("cameraWrap"),captureBtn=document.getElementById("captureBtn"),scanBtn=document.getElementById("scanBtn"),realtimeOcrBtn=document.getElementById("realtimeOcrBtn");
-const scanStatus=document.getElementById("scanStatus");
-const realtimeOcrResultDiv = document.getElementById('realtimeOcrResult');
-const imagePreview = document.getElementById('imagePreview');
-
-navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>{
-  video.srcObject=s;
-  currentVideoTrack = s.getVideoTracks()[0];
-  updateFlashlight(document.getElementById("flashlightSwitch")?.checked || false);
-}).catch(()=>alert("❌ 无法访问摄像头"))
-
-function applyTransform(){
-  video.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale}) rotate(${rotation}deg)`;
-}
-
-wrap.addEventListener("touchend",e=>{
-  const currentTime = new Date().getTime();
-  const tapLength = currentTime - lastTap;
-  if (tapLength < 300 && tapLength > 0) {
-    scale = 1; offsetX = 0; offsetY = 0; rotation = 0;
-    applyTransform();
-    navigator.vibrate && navigator.vibrate(50);
-  }
-  lastTap = currentTime;
-});
-
-wrap.addEventListener("pointerdown",e=>{
-  if(e.pointerType==="mouse"){
-    lastX=e.clientX;lastY=e.clientY;
-    wrap.setPointerCapture(e.pointerId);
-  }
-});
-
-wrap.addEventListener("pointermove",e=>{
-  if(e.pointerType==="mouse" && e.buttons&1){
-    offsetX+=e.clientX-lastX;offsetY+=e.clientY-lastY;
-    lastX=e.clientX;lastY=e.clientY;
-    requestAnimationFrame(applyTransform);
-  }
-});
-
-wrap.addEventListener("touchstart",e=>{
-  if(e.touches.length===1){
-    lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;
-  }
-  if(e.touches.length===2){
-    isMultiTouch=true;lastDist=getDist(e);lastAngle=getAngle(e);
-  }
-});
-
-wrap.addEventListener("touchmove",e=>{
-  if(e.touches.length===1 && !isMultiTouch){
-    e.preventDefault();
-    offsetX+=e.touches[0].clientX-lastX;
-    offsetY+=e.touches[0].clientY-lastY;
-    lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;
-  }
-  if(e.touches.length===2){
-    const d=getDist(e),a=getAngle(e);
-    scale=Math.max(1,Math.min(3,scale*d/lastDist));
-    rotation+=a-lastAngle;
-    lastDist=d;lastAngle=a;
-  }
-  requestAnimationFrame(applyTransform);
-},{passive:false});
-
-wrap.addEventListener("touchend",()=>isMultiTouch=false);
-
-function rotate(){
-  rotation=(rotation+90)%360;
-  requestAnimationFrame(applyTransform);
-}
-
-function stopCamera(){
-  try{
-    const s=video.srcObject;
-    if(s) s.getTracks().forEach(t=>t.stop());
-    video.srcObject=null;
-  }catch(e){}
-  realtimeOcrActive=false;
-  ocrLocalActive = ocrTencentActive = ocrBaiduActive = false;
-  clearTimeout(ocrLocalTimer);
-  clearTimeout(ocrTencentTimer);
-  clearTimeout(ocrBaiduTimer);
-  realtimeOcrResultDiv.style.display="none";
-  realtimeOcrBtn.style.background='rgba(255,193,7,.95)';
-  updateFlashlight(false);
-  currentVideoTrack = null;
-}
-
-window.addEventListener('beforeunload', () => {
-  if (ocrWorker) {
-    ocrWorker.terminate();
-    ocrWorker = null;
-  }
-});
-
-/* ===== 图像预处理 ===== */
-function preprocessCanvasForOCR(ctx, w, h) {
-  const MAX_W = 640;
-  const scale = Math.min(1, MAX_W / w);
-  const sw = Math.floor(w * scale);
-  const sh = Math.floor(h * scale);
-
-  const off = document.createElement("canvas");
-  off.width = sw;
-  off.height = sh;
-  const offCtx = off.getContext("2d");
-
-  offCtx.drawImage(ctx.canvas, 0, 0, sw, sh);
-
-  const imgData = offCtx.getImageData(0, 0, sw, sh);
-  const data = imgData.data;
-
-  let sum = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    sum += data[i];
-  }
-  const avg = sum / (data.length / 4);
-  const threshold = Math.max(90, Math.min(170, avg * 0.85));
-
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-
-    let gray = r * 0.299 + g * 0.587 + b * 0.114;
-    gray *= 0.85;
-    const bw = gray > threshold ? 255 : 0;
-
-    data[i] = data[i + 1] = data[i + 2] = bw;
-  }
-
-  offCtx.putImageData(imgData, 0, 0);
-
-  ctx.canvas.width = sw;
-  ctx.canvas.height = sh;
-  ctx.drawImage(off, 0, 0);
-}
-
-/* ===== 本地 OCR ===== */
-async function realTimeLocalOcr(){
-  if(!ocrLocalActive || video.paused) return;
-  const start = Date.now();
-  const frame=document.querySelector('.ocr-frame');
-  const vr=video.getBoundingClientRect();
-  const fr=frame.getBoundingClientRect();
-
-  const canvas=document.createElement('canvas');
-  canvas.width=fr.width;
-  canvas.height=fr.height;
-  const ctx=canvas.getContext('2d');
-
-  ctx.drawImage(
-    video,
-    fr.left - vr.left,
-    fr.top - vr.top,
-    fr.width,
-    fr.height,
-    0,
-    0,
-    fr.width,
-    fr.height
-  );
-
-  preprocessCanvasForOCR(ctx, fr.width, fr.height);
-
-  const dataUrl=canvas.toDataURL("image/jpeg",0.95);
-  try {
-    const worker = await initOcrWorker();
-    const {data} = await worker.recognize(dataUrl);
-    
-    if(data.text && data.confidence > 60){
-      document.getElementById('inp_name').value = data.text.trim().split('\n')[0];
-      realtimeOcrResultDiv.innerText = `[本地] ${data.text.trim()}`;
-      recordOcrStat('local', true, Date.now() - start);
-    } else {
-      recordOcrStat('local', false, Date.now() - start);
+  if(lic.deviceCode!==dc){
+    if(lic.version==='basic')return{valid:false,version:'basic',error:'基础版不可更换设备'};
+    if(lic.version==='monthly'){
+      if(lic.lastMigrateYear!==new Date().getFullYear()){lic.migrateCount=0;lic.lastMigrateYear=new Date().getFullYear();saveLicense(lic);}
+      if(lic.migrateCount>=2)return{valid:false,version:'monthly',error:'本年度已用完换机次数',needMigrate:true};
+      return{valid:false,version:'monthly',error:`设备已变更，本年剩余${2-lic.migrateCount}次换机机会`,needMigrate:true};
     }
-  } catch(err) {
-    recordOcrStat('local', false, Date.now() - start);
-  }
-  ocrLocalTimer=setTimeout(realTimeLocalOcr,1200);
-}
-
-/* ===== ✅ 腾讯云 OCR（SCF 中转版 · 国内直连） ===== */
-async function realTimeTencentOcr(){
-  if(!ocrTencentActive || video.paused) return;
-  const start = Date.now();
-
-  const frame = document.querySelector('.ocr-frame');
-  const vr = video.getBoundingClientRect();
-  const fr = frame.getBoundingClientRect();
-
-  const canvas = document.createElement('canvas');
-  canvas.width = fr.width;
-  canvas.height = fr.height;
-  const ctx = canvas.getContext('2d');
-
-  ctx.drawImage(
-    video,
-    fr.left - vr.left,
-    fr.top - vr.top,
-    fr.width,
-    fr.height,
-    0,
-    0,
-    fr.width,
-    fr.height
-  );
-
-  preprocessCanvasForOCR(ctx, fr.width, fr.height);
-
-  const base64 = canvas.toDataURL('image/jpeg', 0.8);
-
-  try {
-    const response = await fetch(
-      "留空",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image: base64
-        })
-      }
-    );
-
-    const result = await response.json();
-
-    if (
-      result &&
-      result.TextDetections &&
-      result.TextDetections.length > 0
-    ) {
-      const text = result.TextDetections
-        .map(i => i.DetectedText)
-        .join('');
-
-      document.getElementById('inp_name').value = text;
-      realtimeOcrResultDiv.innerText = `[腾讯] ${text}`;
-      recordOcrStat('tencent', true, Date.now() - start);
-    } else {
-      recordOcrStat('tencent', false, Date.now() - start);
+    if(lic.version==='yearly'){
+      if(lic.lastMigrateYear!==new Date().getFullYear()){lic.migrateCount=0;lic.lastMigrateYear=new Date().getFullYear();saveLicense(lic);}
+      if(lic.migrateCount>=2)return{valid:false,version:'yearly',error:'本年度已用完换机次数',needMigrate:true};
+      return{valid:false,version:'yearly',error:`设备已变更，本年剩余${2-lic.migrateCount}次换机机会`,needMigrate:true};
     }
-  } catch (e) {
-    recordOcrStat('tencent', false, Date.now() - start);
+    if(lic.version==='lifetime')return{valid:false,version:'lifetime',error:'设备已变更，终身版不限次换机',needMigrate:true};
   }
-
-  ocrTencentTimer = setTimeout(realTimeTencentOcr, 800);
+  if(lic.version==='monthly'&&lic.expire&&new Date()>new Date(lic.expire))return{valid:false,version:'monthly',error:'专业版已过期，请续费',expired:true};
+  return{valid:true,version:lic.version};
 }
 
-/* ===== 百度云 OCR ===== */
-async function realTimeBaiduOcr(){
-  if(!ocrBaiduActive || video.paused) return;
-  const start = Date.now();
-  const frame=document.querySelector('.ocr-frame');
-  const vr=video.getBoundingClientRect();
-  const fr=frame.getBoundingClientRect();
+function getUserStatus(){
+  const lic=getLicense();
+  if(lic && lic.version && lic.version !== 'basic'){
+    return{type:'paid',plan:lic.version};
+  }
+  if(lic && lic._simulated && lic._simulatedExpire){
+    const simExpire=new Date(lic._simulatedExpire);
+    const daysLeft=Math.ceil((simExpire-Date.now())/(1000*60*60*24));
+    if(daysLeft>0) return{type:'trial',plan:'yearly',daysLeft};
+    return{type:'free',plan:'basic'};
+  }
+  if(isInTrial()){
+    const daysLeft=Math.ceil((initTrial()+30*24*60*60*1000-Date.now())/(1000*60*60*24));
+    return{type:'trial',plan:'yearly',daysLeft};
+  }
+  return{type:'free',plan:'basic'};
+}
 
-  const canvas=document.createElement('canvas');
-  canvas.width=fr.width;
-  canvas.height=fr.height;
-  const ctx=canvas.getContext('2d');
+function getLimits(){
+  const s=getUserStatus();
+  if(s.type==='paid') return LIMITS[s.plan]||LIMITS.basic;
+  if(s.type==='trial'){
+    const lic=getLicense();
+    if(lic && lic._simulated && lic._simulatedExpire){
+      const simExpire=new Date(lic._simulatedExpire);
+      if(simExpire <= new Date()) return LIMITS.basic;
+      return LIMITS.yearly;
+    }
+    return LIMITS.yearly;
+  }
+  return LIMITS.basic;
+}
 
-  ctx.drawImage(
-    video,
-    fr.left - vr.left,
-    fr.top - vr.top,
-    fr.width,
-    fr.height,
-    0,
-    0,
-    fr.width,
-    fr.height
-  );
+function updateVersionUI(){
+  const lic=getLicense();
+  const actEl=document.getElementById('activationStatusText');
+  if(lic && lic.version && lic.version !== 'basic'){
+    const m={monthly:'月度订阅',yearly:'年度订阅',lifetime:'永久订阅'};
+    const planName=m[lic.version]||lic.version;
+    document.getElementById('versionText').textContent=planName;
+    document.getElementById('deviceStatus').textContent='已激活';
+    document.getElementById('deviceStatus').style.color='#28a745';
+    if(actEl)actEl.innerHTML='当前：<span style="color:#28a745;font-weight:bold;">'+planName+'（已激活）</span>';
+  } else {
+    const s=getUserStatus();
+    if(s.type==='trial'){
+      document.getElementById('versionText').textContent='试用版';
+      document.getElementById('deviceStatus').textContent='剩余 '+s.daysLeft+' 天';
+      document.getElementById('deviceStatus').style.color='#ff9800';
+      if(actEl)actEl.innerHTML='当前：<span style="color:#ff9800;">试用版（剩余 '+s.daysLeft+' 天）</span>';
+    } else {
+      document.getElementById('versionText').textContent='免费版';
+      document.getElementById('deviceStatus').textContent='未激活';
+      document.getElementById('deviceStatus').style.color='#999';
+      if(actEl)actEl.innerHTML='当前：<span style="color:#999;">免费版（功能受限）</span>';
+    }
+  }
+  const limits=getLimits();
+  document.getElementById('lightningBtn').classList.toggle('locked',!limits.allowLightning);
+  const expiredBanner=document.getElementById('expiredBanner');
+  const s=getUserStatus();
+  if(s.type==='free'){
+    expiredBanner.style.display='block';
+  } else {
+    expiredBanner.style.display='none';
+  }
+  const dictAllowed=limits.allowRichExport;
+  const menuDict=document.getElementById('menuExportDict');
+  const menuDictCSV=document.getElementById('menuExportDictCSV');
+  if(menuDict&&menuDictCSV){
+    menuDict.className=dictAllowed?'':'locked';
+    menuDictCSV.className=dictAllowed?'':'locked';
+  }
+  updateDevPanel();
+}
 
-  preprocessCanvasForOCR(ctx, fr.width, fr.height);
+function updateDevPanel(){
+  const lic=getLicense();
+  const resetBtn=document.getElementById('devResetStatus');
+  if(lic&&lic._simulated){
+    resetBtn.style.background='#e74c3c';
+    resetBtn.style.color='#fff';
+    resetBtn.style.fontWeight='bold';
+    resetBtn.disabled=false;
+  }else{
+    resetBtn.style.background='#95a5a6';
+    resetBtn.style.color='#ecf0f1';
+    resetBtn.style.fontWeight='normal';
+    resetBtn.disabled=true;
+  }
+}
 
-  const base64 = canvas.toDataURL('image/jpeg', 0.8);
+function autoMigrate(){
+  const lic=getLicense();
+  if(!lic) return;
+  let changed=false;
+  if(lic.version==='pro'){lic.version='yearly';changed=true;}
+  if(lic.version && lic.version!=='basic' && lic._simulated){
+    lic._simulated=false;
+    lic._simulatedExpire=null;
+    changed=true;
+  }
+  if(changed) saveLicense(lic);
+}
 
+function logoutDevice(){
+  const lic=getLicense();
+  if(!lic || lic.version==='basic'){alert('当前未激活任何订阅');return;}
+  if(!confirm('⚠️ 确定注销当前设备？\n\n注销后本设备将退回免费版，所有付费功能不可用。\n激活码可在新设备上重新激活。\n\n此操作不可撤销，是否继续？'))return;
+  localStorage.removeItem(LICENSE_KEY);
+  alert('✅ 已注销\n本设备已退回免费版。激活码可在新设备上重新激活。');
+  location.reload();
+}
+
+window.forceExpired=function(){
+  const lic=getLicense();if(!lic)return;
+  lic._simulated=true;lic._simulatedExpire='2000-01-01';
+  saveLicense(lic);updateVersionUI();
+  alert("⏳ 已模拟到期，功能已降级为基础版");
+};
+
+window.setRemainDays=function(days){
+  const lic=getLicense();if(!lic)return;
+  lic._simulated=true;
+  const now=Date.now();
+  const targetDate=new Date(now+days*24*60*60*1000);
+  lic._simulatedExpire=targetDate.toISOString().split('T')[0];
+  saveLicense(lic);updateVersionUI();
+  ['trial_remind_3','trial_remind_2','trial_remind_1','trial_expired'].forEach(k=>localStorage.removeItem(k));
+  localStorage.removeItem('trial_dont_show');
+  localStorage.removeItem('trial_dont_show_date');
+  alert("✅ 已设为剩余 "+days+" 天（仅测提醒，功能不受影响）\n刷新页面即可看到提醒弹窗");
+};
+
+window.resetToNormal=function(){
+  const lic=getLicense();
+  if(!lic||!lic._simulated)return;
+  lic._simulated=false;lic._simulatedExpire=null;
+  saveLicense(lic);updateVersionUI();
+  localStorage.removeItem('trial_dont_show');
+  localStorage.removeItem('trial_dont_show_date');
+  alert("✅ 已恢复正常");
+};
+
+// ✅ 开发者面板测试按钮 → 走云端
+window.testActivate = async function() {
+  const c = document.getElementById('devCodeInput').value.trim().toUpperCase();
+  if (!c) return;
   try {
-    const API_KEY = "你的百度API_KEY";
-    const SECRET_KEY = "你的百度SECRET_KEY";
-    const tokenRes = await fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${API_KEY}&client_secret=${SECRET_KEY}`);
-    const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
-    if (!accessToken) return;
-
-    const ocrRes = await fetch(`https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token=${accessToken}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `image=${encodeURIComponent(base64)}`
+    const resp = await fetch(API_ACTIVATE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: c, deviceCode: getDeviceCode() })
     });
-    const ocrData = await ocrRes.json();
-    if (ocrData && ocrData.words_result) {
-      const text = ocrData.words_result.map(item => item.words).join('');
-      document.getElementById('inp_name').value = text;
-      realtimeOcrResultDiv.innerText = `[百度] ${text}`;
-      recordOcrStat('baidu', true, Date.now() - start);
-    } else {
-      recordOcrStat('baidu', false, Date.now() - start);
-    }
+    const result = await resp.json();
+    document.getElementById('devStatus').innerText = result.success ? '✅ 有效：' + result.plan : '❌ 无效';
   } catch(e) {
-    recordOcrStat('baidu', false, Date.now() - start);
+    document.getElementById('devStatus').innerText = '❌ 网络错误';
   }
-  ocrBaiduTimer = setTimeout(realTimeBaiduOcr, 800);
-}
-
-/* ===== OCR 总开关 ===== */
-realtimeOcrBtn.onpointerdown=function(e){
-  e.preventDefault();
-  realtimeOcrActive=!realtimeOcrActive;
-  
-  ocrLocalActive = realtimeOcrActive && document.getElementById('ocrLocalSwitch').checked;
-  ocrTencentActive = realtimeOcrActive && document.getElementById('ocrTencentSwitch').checked;
-  ocrBaiduActive = realtimeOcrActive && document.getElementById('ocrBaiduSwitch').checked;
-
-  this.style.background= realtimeOcrActive ? 'rgba(220,53,69,.95)' : 'rgba(255,193,7,.95)';
-  realtimeOcrResultDiv.style.display= realtimeOcrActive ? 'block' : 'none';
-
-  if (ocrLocalActive) realTimeLocalOcr();
-  if (ocrTencentActive) realTimeTencentOcr();
-  if (ocrBaiduActive) realTimeBaiduOcr();
 };
 
-/* ===== 拍照 ===== */
-captureBtn.onpointerdown=function(e){
-  e.preventDefault();
-  navigator.vibrate&&navigator.vibrate(50);
+// ✅ 激活函数 → 走云端
+async function activateLicense() {
+  const input = document.getElementById("activateInput").value.trim().toUpperCase();
+  if (!input) return alert("请输入激活码");
   
-  updateFlashlight(false);
-
-  ocrLocalActive = ocrTencentActive = ocrBaiduActive = false;
-  clearTimeout(ocrLocalTimer);
-  clearTimeout(ocrTencentTimer);
-  clearTimeout(ocrBaiduTimer);
-
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-
-  const frame=document.querySelector('.focus-frame');
-  const fr=frame.getBoundingClientRect();
-  const vr=video.getBoundingClientRect();
-
-  const scaleX = vw / vr.width;
-  const scaleY = vh / vr.height;
-
-  let cx = (fr.left - vr.left + fr.width / 2) * scaleX;
-  let cy = (fr.top - vr.top + fr.height / 2) * scaleY;
-
-  const angle = rotation * Math.PI / 180;
-  const rx = (cx - vw / 2) * Math.cos(angle) + (cy - vh / 2) * Math.sin(angle) + vw / 2;
-  const ry = -(cx - vw / 2) * Math.sin(angle) + (cy - vh / 2) * Math.cos(angle) + vh / 2;
-
-  const sw = fr.width * scaleX;
-  const sh = fr.height * scaleY;
-
-  const canvas=document.createElement('canvas');
-  canvas.width=sw;
-  canvas.height=sh;
-  const ctx=canvas.getContext('2d');
+  const deviceCode = getDeviceCode();
   
-  ctx.translate(sw / 2, sh / 2);
-  ctx.rotate(-angle);
-  ctx.drawImage(
-    video,
-    rx - sw / 2,
-    ry - sh / 2,
-    sw,
-    sh,
-    -sw / 2,
-    -sh / 2,
-    sw,
-    sh
-  );
-  
-  tempImageData=canvas.toDataURL("image/jpeg",0.98);
-  
-  const modal=document.getElementById('formModal');
-  modal.style.display='flex';
-  imagePreview.src = tempImageData;
-  imagePreview.style.display = 'block';
-};
-
-function retakePhoto(){
-  tempImageData = "";
-  imagePreview.style.display = 'none';
-  imagePreview.src = "";
-  document.getElementById("inp_code_display").value = "";
-  document.getElementById("scanStatus").innerText = "";
-  document.getElementById("formModal").style.display = 'none';
-
-  navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment" }
-  }).then(s => {
-    video.srcObject = s;
-    currentVideoTrack = s.getVideoTracks()[0];
-    updateFlashlight(document.getElementById("flashlightSwitch")?.checked || false);
-  });
-
-  const isContinuous = document.getElementById("continuousCaptureSwitch")?.checked;
-  if (isContinuous) {
-    document.getElementById("categoryBar").style.display = "block";
-    document.getElementById("currentCat").innerText = quickCategory;
-  }
-}
-
-/* ===== 扫码匹配范围互斥 ===== */
-const onlyMainCodeSwitch = document.getElementById('onlyMainCodeSwitch');
-const onlyItemCodeSwitch = document.getElementById('onlyItemCodeSwitch');
-
-onlyMainCodeSwitch.onchange = () => {
-  if (onlyMainCodeSwitch.checked) onlyItemCodeSwitch.checked = false;
-};
-
-onlyItemCodeSwitch.onchange = () => {
-  if (onlyItemCodeSwitch.checked) onlyMainCodeSwitch.checked = false;
-};
-
-/* ===== 扫码 ===== */
-function stopScan(){if(currentScanner){try{currentScanner.stop()}catch{} try{currentScanner.clear()}catch{} currentScanner=null;}document.getElementById("scanner_container").style.display="none";isScanning=false;updateFlashlight(false);}
-
-scanBtn.onpointerdown=e=>{
-  e.preventDefault();
-  if(isScanning) return;
-
-  if(document.getElementById("continuousCaptureSwitch")?.checked){
-    alert("请先关闭连续拍照模式");
+  // 本地只做格式预检，减少无效请求
+  const parts = input.split('-');
+  if (parts.length !== 4 || parts[0] !== 'P') {
+    alert("❌ 激活码格式不正确\n正确格式：P-XXXX-YYYY-Z");
     return;
   }
   
-  stopCamera();
-  ocrLocalActive = ocrTencentActive = ocrBaiduActive = false;
-  clearTimeout(ocrLocalTimer);
-  clearTimeout(ocrTencentTimer);
-  clearTimeout(ocrBaiduTimer);
-
-  isScanning=true;
-  const sc=document.getElementById("scanner_container");
-  sc.style.display="block";
-  document.getElementById("formModal").style.display="flex";
-  scanStatus.innerText="🔄 正在启动摄像头…";
-  currentScanner=new Html5Qrcode("scanner_container");
-  Html5Qrcode.getCameras().then(cams=>{
-    if(!cams.length){scanStatus.innerText="❌ 未检测到摄像头";stopScan();return;}
-    scanStatus.innerText="📷 请将条码对准取景框";
-    currentScanner.start(cams[cams.length-1].id,{
-      fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.777778
-    },handleScanSuccess,()=>{});
-    currentVideoTrack = currentScanner.getRunningTrack();
-    updateFlashlight(document.getElementById("flashlightSwitch")?.checked || false);
-  }).catch(()=>{scanStatus.innerText="❌ 无法访问摄像头";stopScan();});
-};
-
-async function handleScanSuccess(code){
-  if(!isScanning) return;
-  navigator.vibrate&&navigator.vibrate(100);
-  scanStatus.innerText="✅ 识别成功";
-  document.getElementById("inp_code_display").value=code;
-
-  const db = await openDB();
-  const all = await new Promise(r =>
-    db.transaction(STORE_CODE,"readonly")
-      .objectStore(STORE_CODE)
-      .getAll()
-      .onsuccess = e => r(e.target.result)
-  );
-
-  let matched = null;
-  let codeType = "";
-
-  const onlyMain = document.getElementById('onlyMainCodeSwitch').checked;
-  const onlyItem = document.getElementById('onlyItemCodeSwitch').checked;
-
-  if (!onlyItem) {
-    matched = all.find(i => i.code === code);
-    if (matched) codeType = "main";
+  let result;
+  try {
+    const resp = await fetch(API_ACTIVATE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: input, deviceCode })
+    });
+    result = await resp.json();
+  } catch (e) {
+    alert("网络错误，请检查网络连接后重试");
+    return;
   }
-
-  if (!matched && !onlyMain) {
-    matched = all.find(i => i.codes && i.codes.includes(code));
-    if (matched) codeType = "item";
+  
+  if (!result.success) {
+    alert("❌ 激活码无效或已被使用");
+    return;
   }
-
-  if(matched){
-    document.getElementById("inp_name").value = matched.model;
-    document.getElementById("inp_category").value = matched.category;
-    document.getElementById("inp_code_display").dataset.codeType = codeType;
-  }
-
-  if(currentScanner) currentScanner.pause();
+  
+  const now = new Date();
+  const lic = {
+    machineCode: deviceCode,
+    version: result.plan,
+    expire: result.expire || null,
+    deviceCode: deviceCode,
+    migrateCount: 0,
+    lastMigrateYear: now.getFullYear(),
+    _simulated: false,
+    _simulatedExpire: null
+  };
+  saveLicense(lic);
+  localStorage.setItem('used_' + btoa(input).replace(/[=+\/]/g,''), '1');
+  localStorage.removeItem('trial_dont_show');
+  localStorage.removeItem('trial_dont_show_date');
+  ['trial_remind_3','trial_remind_2','trial_remind_1','trial_expired'].forEach(k=>localStorage.removeItem(k));
+  updateVersionUI();
+  closeUpgradeModal();
+  closeTrialRemind();
+  alert("✅ 激活成功！欢迎使用 " + ({ monthly: "月度订阅", yearly: "年度订阅", lifetime: "永久订阅" })[result.plan]);
 }
 
-document.getElementById("scanFileBtn").onclick=()=>document.getElementById("fileInput").click();
-document.getElementById("fileInput").onchange=async function(e){
-  const file=e.target.files[0];if(!file) return;
-  scanStatus.innerText="🔄 正在识别图片…";
-  try{const qr=new Html5Qrcode("scanner_container");const code=await qr.scanFile(file,true);handleScanSuccess(code);}catch{scanStatus.innerText="❌ 图片中未识别到条码";}finally{this.value="";}
-};
-
-document.getElementById("inp_category").onchange=function(){
-  const s=document.getElementById("inp_spec"),g=document.getElementById("customSpecGroup");
-  if(["床头柜","沙发","小件"].includes(this.value)){s.value="custom";g.style.display="block";}else{g.style.display=s.value==="custom"?"block":"none";}
-};
-document.getElementById("inp_spec").onchange=function(){document.getElementById("customSpecGroup").style.display=this.value==="custom"?"block":"none";};
-
-function changeQty(d){const i=document.getElementById("inp_qty");i.value=Math.max(1,(parseInt(i.value)||1)+d);}
-
-function toggleAdvancedPanel() {
-    const panel = document.getElementById('advancedPanel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+function showUpgradeModal(){
+  document.getElementById('modalMachineCode').textContent=getDeviceCode();
+  document.getElementById('activateInput').value='';
+  document.getElementById('upgradeModal').style.display='flex';
+}
+function closeUpgradeModal(){document.getElementById('upgradeModal').style.display='none';}
+function copyMachineCode(){
+  const code=document.getElementById('modalMachineCode').textContent;
+  navigator.clipboard.writeText(code).then(()=>alert('机器码已复制')).catch(()=>alert('复制失败'));
 }
 
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(STORE_REC))db.createObjectStore(STORE_REC,{keyPath:"id",autoIncrement:true});if(!db.objectStoreNames.contains(STORE_BAK))db.createObjectStore(STORE_BAK,{keyPath:"key"});if(!db.objectStoreNames.contains(STORE_CODE))db.createObjectStore(STORE_CODE,{keyPath:"code"});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function checkTrialReminder(){
+  const dontShowDate=localStorage.getItem('trial_dont_show_date');
+  if(dontShowDate){
+    const daysSince=Math.floor((Date.now()-Number(dontShowDate))/(1000*60*60*24));
+    if(daysSince>=7){
+      localStorage.removeItem('trial_dont_show');
+      localStorage.removeItem('trial_dont_show_date');
+    }
+  }
+  if(localStorage.getItem('trial_dont_show')==='1')return;
+  
+  const s=getUserStatus();
+  if(s.type!=='trial' && s.type!=='free')return;
+  const d=s.type==='trial' ? s.daysLeft : 0;
+  if(s.type==='trial' && d>3) return;
+  const today=new Date().toDateString();
+  const key=d>0?'trial_remind_'+d:'trial_expired';
+  if(localStorage.getItem(key)===today)return;
+  if(d>0) localStorage.setItem(key,today);
+  const title=d>0?`试用还剩 ${d} 天`:'试用已结束';
+  const text=d>0?`您的专业版试用还剩 <b style="color:#ff9800">${d}</b> 天<br>激活后可继续使用全部功能，数据不会丢失。`:`您的专业版试用已结束<br>数据已保留，但闪电拍、带图导出等功能已暂停`;
+  document.getElementById('trialRemindTitle').innerHTML=title;
+  document.getElementById('trialRemindText').innerHTML=text;
+  document.getElementById('trialRemindModal').style.display='flex';
+}
+function closeTrialRemind(){
+  if(document.getElementById('dontShowAgain').checked){
+    localStorage.setItem('trial_dont_show','1');
+    localStorage.setItem('trial_dont_show_date',Date.now().toString());
+  }
+  document.getElementById('trialRemindModal').style.display='none';
+}
 
-async function initDB(){const db=await openDB();dbReady=true;await loadRecords(db);}
-async function loadRecords(db){return new Promise(res=>{const list=[];const tx=db.transaction(STORE_REC,"readonly");const store=tx.objectStore(STORE_REC);store.openCursor().onsuccess=e=>{const cursor=e.target.result;if(cursor){list.push(cursor.value);cursor.continue();}else{records=list;res();}};});}
+let lastX=0,lastY=0,scale=1,offsetX=0,offsetY=0,rotation=0,listVisible=false,isMultiTouch=false,lastDist=0,lastAngle=0;
+let currentVideoTrack=null,isLightningMode=false,lightningCategory="床架";
+let listPage=0,PAGE_SIZE=50;
+let records=[],dbReady=false,tempImage="",currentScanner=null,savingLightning=false;
+const DB_NAME="PhotonInventoryDB",DB_VER=3,STORE_REC="records",STORE_BAK="backups",STORE_CODE="codes";
+const dbQueue=[];let dbProcessing=false;
+let globalStream=null;
 
-function withDB(fn){return async(...a)=>{if(!dbReady)await initDB();const db=await openDB();return fn(db,...a);};}
+function isPaidUser(){return['monthly','yearly','lifetime'].includes(getUserStatus().plan);}
+function updateFlashlight(en){if(!currentVideoTrack)return;try{currentVideoTrack.applyConstraints({advanced:[{torch:en}]});}catch(e){}}
 
-function compressImage(base64, maxW = 2800, quality = 0.96) {
-  return new Promise(res => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(maxW / img.width, 1);
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      
-      res(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.src = base64;
+const video=document.getElementById("video"),wrap=document.getElementById("cameraWrap"),captureBtn=document.getElementById("captureBtn"),scanBtn=document.getElementById("scanBtn");
+const lightningBtn=document.getElementById("lightningBtn"),endLightningBtn=document.getElementById("endLightningBtn"),scanStatus=document.getElementById("scanStatus");
+
+let focusResetTimer=null,lastFocusTime=0;
+
+async function safeApplyFocus(mode,extra={}){
+  if(!currentVideoTrack)return false;
+  try{const caps=currentVideoTrack.getCapabilities?.();
+    if(caps&&caps.focusMode&&!caps.focusMode.includes(mode))return false;
+    await currentVideoTrack.applyConstraints({advanced:[{focusMode:mode},...extra]});
+    return true;
+  }catch{return false;}
+}
+
+async function attachCamera(){
+  try{
+    if(globalStream){const tracks=globalStream.getTracks();if(tracks.length&&tracks[0].readyState==='live'){video.srcObject=globalStream;currentVideoTrack=tracks[0];safeApplyFocus('continuous');updateFlashlight(document.getElementById("flashlightSwitch")?.checked||false);return;}
+      tracks.forEach(t=>t.stop());globalStream=null;}
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+    globalStream=s;video.srcObject=s;currentVideoTrack=s.getVideoTracks()[0];
+    safeApplyFocus('continuous');updateFlashlight(document.getElementById("flashlightSwitch")?.checked||false);
+  }catch(e){console.warn("摄像头初始化失败:",e);}
+}
+
+async function doManualFocus(x,y){
+  if(!currentVideoTrack)return;const now=Date.now();if(now-lastFocusTime<600)return;
+  lastFocusTime=now;
+  try{
+    focusRing.style.left=x+'px';focusRing.style.top=y+'px';focusRing.style.display='block';focusRing.className='';
+    const macroOk=await safeApplyFocus('manual',{focusDistance:0.05,exposureMode:'continuous'});
+    if(macroOk){focusRing.classList.add('success');}
+    else{const singleOk=await safeApplyFocus('single-shot');focusRing.classList.add(singleOk?'success':'fail');}
+    navigator.vibrate?.([10]);
+  }catch{focusRing.classList.add('fail');}
+  clearTimeout(focusResetTimer);
+  focusResetTimer=setTimeout(async()=>{await safeApplyFocus('continuous');focusRing.style.display='none';},2000);
+}
+
+wrap.addEventListener('pointerdown',e=>{const rect=wrap.getBoundingClientRect();doManualFocus(e.clientX-rect.left,e.clientY-rect.top);});
+attachCamera();
+
+function applyTransform(){video.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale}) rotate(${rotation}deg)`;}
+let lastTap=0;
+wrap.addEventListener("touchend",e=>{const ct=Date.now(),tl=ct-lastTap;if(tl<300&&tl>0){scale=1;offsetX=0;offsetY=0;rotation=0;applyTransform();navigator.vibrate&&navigator.vibrate(50);}lastTap=ct;});
+wrap.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"){lastX=e.clientX;lastY=e.clientY;wrap.setPointerCapture(e.pointerId);}});
+wrap.addEventListener("pointermove",e=>{if(e.pointerType==="mouse"&&e.buttons&1){offsetX+=e.clientX-lastX;offsetY+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;requestAnimationFrame(applyTransform);}});
+wrap.addEventListener("touchstart",e=>{if(e.touches.length===1){lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}if(e.touches.length===2){isMultiTouch=true;lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);lastAngle=Math.atan2(e.touches[1].clientY-e.touches[0].clientY,e.touches[1].clientX-e.touches[0].clientX)*180/Math.PI;}});
+wrap.addEventListener("touchmove",e=>{
+  if(e.touches.length===1&&!isMultiTouch){e.preventDefault();offsetX+=e.touches[0].clientX-e.touches[0].clientY;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
+  if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY),a=Math.atan2(e.touches[1].clientY-e.touches[0].clientY,e.touches[1].clientX-e.touches[0].clientX)*180/Math.PI;scale=Math.max(1,Math.min(3,scale*d/lastDist));rotation+=a-lastAngle;lastDist=d;lastAngle=a;}
+  requestAnimationFrame(applyTransform());
+},{passive:false});
+wrap.addEventListener("touchend",()=>isMultiTouch=false);
+
+function rotate(){rotation=(rotation+90)%360;requestAnimationFrame(applyTransform);}
+function stopCamera(){try{const s=video.srcObject;if(s)s.getTracks().forEach(t=>t.stop());video.srcObject=null;}catch(e){}updateFlashlight(false);currentVideoTrack=null;}
+
+function activateLightningMode(){
+  if(!getLimits().allowLightning){showUpgradeModal();return;}
+  isLightningMode=true;document.getElementById('continuousCaptureSwitch').checked=true;
+  document.getElementById('categoryBar').style.display='block';document.getElementById('currentCat').innerText=lightningCategory;
+  document.getElementById('endLightningBtn').style.display='block';navigator.vibrate&&navigator.vibrate(50);
+}
+function exitLightningMode(){
+  isLightningMode=false;document.getElementById('continuousCaptureSwitch').checked=false;
+  document.getElementById('categoryBar').style.display='none';document.getElementById('endLightningBtn').style.display='none';
+  document.getElementById('lightningCountTip').style.display='none';closeSettingsModal();closeFormModal();
+}
+
+function compressImage(base64,maxPixels=1920*1080,quality=0.85){
+  return new Promise(res=>{
+    const img=new Image();img.onload=()=>{let{w,h}=img;if(w*h>maxPixels){const s=Math.sqrt(maxPixels/(w*h));w=Math.floor(w*s);h=Math.floor(h*s);}
+      const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
+      ctx.drawImage(img,0,0,w,h);res(c.toDataURL('image/jpeg',quality));
+    };img.onerror=()=>res(base64);img.src=base64;
   });
 }
 
+let lightningQueue=[],lightningSaving=false;
+
+async function flushLightningQueue(){
+  if(lightningSaving||!lightningQueue.length)return;
+  lightningSaving=true;
+  try{const db=await openDB();const tx=db.transaction(STORE_REC,"readwrite");const store=tx.objectStore(STORE_REC);
+    while(lightningQueue.length){const rec=lightningQueue.shift();store.put(rec);}
+    await new Promise(r=>tx.oncomplete=r);await loadRecords(db);
+  }finally{lightningSaving=false;if(lightningQueue.length)flushLightningQueue();}
+}
+
+async function saveLightningRecord(imgData){
+  if(savingLightning)return;savingLightning=true;
+  try{const lim=getLimits();if(records.length+lightningQueue.length>=lim.maxRecords){savingLightning=false;alert(`基础版限${lim.maxRecords}条`);showUpgradeModal();return;}
+    const comp=await compressImage(imgData);
+    const cr=records.filter(r=>r.category===lightningCategory);
+    const seq=String(cr.length+lightningQueue.length+1).padStart(3,'0');
+    const rec={time:new Date().toLocaleString(),code:"",model:`${lightningCategory}-${seq}`,category:lightningCategory,spec:"标准",color:"默认",qty:1,status:'pending',note:"极速初盘",image:comp};
+    lightningQueue.push(rec);
+    navigator.vibrate&&navigator.vibrate(50);
+    const tip=document.getElementById("lightningCountTip");tip.innerText=`📦 ${records.length+lightningQueue.length}`;tip.style.display='block';setTimeout(()=>tip.style.display='none',600);
+    flushLightningQueue();
+  }finally{savingLightning=false;}
+}
+
+captureBtn.onpointerdown=function(e){
+  e.preventDefault();navigator.vibrate&&navigator.vibrate(50);updateFlashlight(false);
+  const vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh){alert("视频尚未准备好");return;}
+  const frame=document.querySelector('.focus-frame'),fr=frame.getBoundingClientRect(),vr=video.getBoundingClientRect();
+  const sX=vw/vr.width,sY=vh/vr.height;
+  let cx=(fr.left-vr.left+fr.width/2)*sX,cy=(fr.top-vr.top+fr.height/2)*sY;
+  const ang=rotation*Math.PI/180,rx=(cx-vw/2)*Math.cos(ang)+(cy-vh/2)*Math.sin(ang)+vw/2,ry=-(cx-vw/2)*Math.sin(ang)+(cy-vh/2)*Math.cos(ang)+vh/2;
+  const sw=fr.width*sX,sh=fr.height*sY,c=document.createElement('canvas');c.width=sw;c.height=sh;const ctx=c.getContext('2d');
+  ctx.translate(sw/2,sh/2);ctx.rotate(-ang);ctx.drawImage(video,rx-sw/2,ry-sh/2,sw,sh,-sw/2,-sh/2,sw,sh);
+  const imgData=c.toDataURL("image/jpeg",0.98);
+  if(isLightningMode){saveLightningRecord(imgData);return;}
+  tempImage=imgData;document.getElementById('formModal').style.display='flex';
+  document.getElementById('previewImg').src=tempImage;document.getElementById('previewImg').style.display='block';
+};
+
+lightningBtn.onpointerdown=e=>{e.preventDefault();activateLightningMode();};
+document.getElementById('continuousCaptureSwitch').onchange=function(){this.checked?activateLightningMode():isLightningMode&&exitLightningMode();};
+endLightningBtn.onpointerdown=e=>{e.preventDefault();exitLightningMode();};
+
+function retakePhoto(){
+  tempImage="";document.getElementById('previewImg').style.display='none';document.getElementById('previewImg').src="";
+  document.getElementById("inp_code_display").value="";document.getElementById("scanStatus").innerText="";
+  document.getElementById("formModal").style.display='none';
+  attachCamera();
+  if(isLightningMode){document.getElementById("categoryBar").style.display="block";document.getElementById("currentCat").innerText=lightningCategory;endLightningBtn.style.display='block';}
+}
+
+function stopScan(){if(currentScanner){try{currentScanner.stop()}catch{}currentScanner=null;}document.getElementById("scanner_container").style.display="none";updateFlashlight(false);}
+
+let scanFailCount=0,scanStartTime=0;
+function resetScanHint(){scanFailCount=0;scanStartTime=0;scanStatus.innerText='';}
+function onScanAttempt(failed){
+  if(!scanStartTime)scanStartTime=Date.now();
+  const elapsed=Date.now()-scanStartTime;
+  if(!failed){resetScanHint();return;}
+  scanFailCount++;
+  if(elapsed>3000&&scanFailCount>=3){scanStatus.innerText='📏 请靠近一点';}
+  if(video.videoWidth){const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;const ctx=canvas.getContext('2d');ctx.drawImage(video,0,0,64,64);const imgd=ctx.getImageData(0,0,64,64);let sum=0;for(let i=0;i<imgd.data.length;i+=4)sum+=imgd.data[i];const brightness=sum/(64*64);if(brightness<55){scanStatus.innerText='💡 光线不足，建议开闪光灯';}}
+  if(scanFailCount>=5){scanStatus.innerText='📸 可点击屏幕手动对焦';}
+}
+
+async function detectLiveScanSupport() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !navigator.mediaDevices.enumerateDevices) return false;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+    if (videoDevices.length === 0) return false;
+    const testStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { max: 320 } } });
+    if (!testStream || testStream.getVideoTracks().length === 0) return false;
+    testStream.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (err) { return false; }
+}
+
+scanBtn.onpointerdown = async e => {
+  e.preventDefault();
+  if (currentScanner) return;
+  resetScanHint();
+  const sc = document.getElementById("scanner_container");
+  sc.style.display = "block";
+  document.getElementById("formModal").style.display = "flex";
+  scanStatus.innerText = "🔄 正在启动摄像头…";
+  try {
+    currentScanner = new Html5Qrcode("scanner_container");
+    const cams = await Html5Qrcode.getCameras();
+    if (!cams.length) { scanStatus.innerText = "❌ 未检测到摄像头设备"; stopScan(); return; }
+    scanStatus.innerText = "📷 请将条码对准取景框";
+    await currentScanner.start(cams[cams.length-1].id,{ fps:5, qrbox:{width:200,height:120} },code=>{onScanAttempt(false);handleScanSuccess(code);},err=>{if(err&&!String(err).includes("No MultiFormat Readers"))onScanAttempt(true);});
+  } catch(err) {
+    if(err.name==='NotFoundError'||err.name==='NotReadableError') scanStatus.innerText="❌ 摄像头被占用或无法访问，请使用拍照识别";
+    else if(err.name==='NotAllowedError') scanStatus.innerText="❌ 摄像头权限被拒绝，请在浏览器设置中允许";
+    else scanStatus.innerText="❌ 当前浏览器不支持实时扫码，请使用拍照识别";
+    stopScan();
+  }
+};
+
+async function handlePhotoScan(file){
+  if(!file)return;
+  document.getElementById('formModal').style.display='flex';
+  document.getElementById('scanStatus').innerText='🔄 正在识别图片中的条码...';
+  document.getElementById('previewImg').style.display='block';
+  const reader=new FileReader();reader.onload=e=>{document.getElementById('previewImg').src=e.target.result;};reader.readAsDataURL(file);
+  try{
+    const qr=new Html5Qrcode("scanner_container");
+    const code=await qr.scanFile(file,true);
+    document.getElementById('scanStatus').innerText='✅ 识别成功';
+    document.getElementById('inp_code_display').value=code;
+    const name=await findProductNameByCode(code);
+    document.getElementById('inp_name').value=name||code;
+    navigator.vibrate&&navigator.vibrate(100);
+  }catch(err){document.getElementById('scanStatus').innerText='❌ 未能识别到条码，可手动输入';navigator.vibrate&&navigator.vibrate([50,50,50]);}
+}
+
+document.getElementById('photoScanBtn').onpointerdown=e=>{e.preventDefault();document.getElementById('photoScanInput').click();};
+document.getElementById('photoScanInput').onchange=function(e){handlePhotoScan(e.target.files[0]);this.value='';};
+
+document.getElementById("scanFileBtn").onclick=()=>document.getElementById("fileInput").click();
+document.getElementById("modalPhotoScanBtn").onclick=function(){document.getElementById("modalPhotoInput").click();};
+document.getElementById("modalPhotoInput").onchange=function(e){handlePhotoScan(e.target.files[0]);this.value='';};
+document.getElementById("fileInput").onchange=async function(e){
+  const file=e.target.files[0];if(!file)return;scanStatus.innerText="🔄 正在识别图片…";
+  try{const qr=new Html5Qrcode("scanner_container");const code=await qr.scanFile(file,true);onScanAttempt(false);handleScanSuccess(code);}catch{onScanAttempt(true);scanStatus.innerText="❌ 图片中未识别到条码";}finally{this.value="";}
+};
+
+document.getElementById("inp_category").onchange=function(){const s=document.getElementById("inp_spec"),g=document.getElementById("customSpecGroup");if(["床头柜","沙发","小件"].includes(this.value)){s.value="custom";g.style.display="block";}else{g.style.display=s.value==="custom"?"block":"none";}};
+document.getElementById("inp_spec").onchange=function(){document.getElementById("customSpecGroup").style.display=this.value==="custom"?"block":"none";};
+function changeQty(d){const i=document.getElementById("inp_qty");i.value=Math.max(1,(parseInt(i.value)||1)+d);}
+function toggleAdvancedPanel(){const p=document.getElementById('advancedPanel');p.style.display=p.style.display==='none'?'block':'none';}
+
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(STORE_REC))db.createObjectStore(STORE_REC,{keyPath:"id",autoIncrement:true});if(!db.objectStoreNames.contains(STORE_BAK))db.createObjectStore(STORE_BAK,{keyPath:"key"});if(!db.objectStoreNames.contains(STORE_CODE))db.createObjectStore(STORE_CODE,{keyPath:"code"});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function runDbOp(op){return new Promise(res=>{dbQueue.push({op:op,resolve:res});processDbQueue();});}
+async function processDbQueue(){if(dbProcessing||dbQueue.length===0)return;dbProcessing=true;const{q,resolve}=dbQueue.shift();try{resolve(await q());}catch(e){resolve(undefined);}finally{dbProcessing=false;processDbQueue();}}
+async function initDB(){const db=await openDB();dbReady=true;await loadRecords(db);}
+async function loadRecords(db){return new Promise(res=>{const list=[];db.transaction(STORE_REC,"readonly").objectStore(STORE_REC).openCursor().onsuccess=e=>{const c=e.target.result;if(c){list.push(c.value);c.continue();}else{records=list;res();}};});}
+function withDB(fn){return async(...a)=>{if(!dbReady)await initDB();const db=await openDB();return fn(db,...a);};}
+
 const saveRecord=withDB(async db=>{
-  const btn=document.querySelector("#formModal button.save");
-  btn.disabled=true;
-  const n=document.getElementById("inp_name").value.trim();
-  
-  const isContinuous = document.getElementById("continuousCaptureSwitch")?.checked;
-  let name = n;
-
-  if(isContinuous){
-    name = `${quickCategory}-${String(Date.now()).slice(-3)}`;
-  } else if(!n){
-    btn.disabled=false;
-    return alert("产品名称不能为空");
-  }
-
-  let s=document.getElementById("inp_spec").value;
-  s=s==="custom"?document.getElementById("inp_custom_spec").value.trim()||"定制":s;
-  
-  const compressedImage = await compressImage(tempImageData);
-  const codeType = document.getElementById("inp_code_display").dataset.codeType;
-
-  const rec={
-    id:Date.now(),
-    time:new Date().toLocaleString(),
-    code:document.getElementById("inp_code_display").value,
-    model:name,
-    category:isContinuous ? quickCategory : document.getElementById("inp_category").value,
-    spec:s,
-    color:document.getElementById("inp_color").value.trim(),
-    qty:codeType === "item" ? 1 : Number(document.getElementById("inp_qty").value),
-    codeType: codeType,
-    note:document.getElementById("inp_note").value.trim(),
-    image:compressedImage
-  };
-  
-  await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).put(rec).onsuccess=r);
-  await loadRecords(db);
-  
-  const autoSave=document.getElementById("autoDictSwitch").checked;
+  const btn=document.querySelector("#formModal button.save");btn.disabled=true;
+  const n=document.getElementById("inp_name").value.trim();if(!n){btn.disabled=false;return alert("产品名称不能为空");}
+  const lim=getLimits();if(records.length>=lim.maxRecords){alert(`基础版限${lim.maxRecords}条`);showUpgradeModal();btn.disabled=false;return;}
+  let s=document.getElementById("inp_spec").value;s=s==="custom"?document.getElementById("inp_custom_spec").value.trim()||"定制":s;
+  const comp=await compressImage(tempImage);
   const scannedCode=document.getElementById("inp_code_display").value;
-  const productName=document.getElementById("inp_name").value.trim();
-  if (autoSave && scannedCode && productName && productName !== scannedCode) {
-    await saveCodeMapping(scannedCode, productName);
-  }
-
-  if(navigator.vibrate){
-    try { navigator.vibrate([60, 40, 60]); } catch(e) {}
-  }
-
-  alert("保存成功！");
-  
-  if (isContinuous) {
-    retakePhoto();
-  } else {
-    closeFormModal();
-  }
-  
-  btn.disabled=false;
+  const rec={time:new Date().toLocaleString(),code:scannedCode,model:n,category:document.getElementById("inp_category").value,spec:s,color:document.getElementById("inp_color").value.trim()||"",qty:Number(document.getElementById("inp_qty").value),status:'confirmed',note:document.getElementById("inp_note").value.trim(),image:comp};
+  await runDbOp(async()=>{await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).put(rec).onsuccess=r);});
+  await loadRecords(db);
+  if(document.getElementById("autoDictSwitch").checked&&scannedCode&&n&&n!==scannedCode)await saveCodeMapping(scannedCode,n);
+  if(navigator.vibrate)try{navigator.vibrate([60,40,60]);}catch(e){}
+  alert("保存成功！");closeFormModal();btn.disabled=false;
 });
 
-function closeFormModal(){
-  stopScan();
-  stopCamera();
-  document.getElementById("formModal").style.display="none";
-  tempImageData="";
-  imagePreview.style.display = 'none';
-  document.getElementById("inp_code_display").value="";
-  document.getElementById("scanStatus").innerText="";
-  document.getElementById("categoryBar").style.display="none";
-}
+function closeFormModal(){stopScan();stopCamera();document.getElementById("formModal").style.display="none";document.getElementById("formModal").classList.remove("lightning-simple");document.getElementById("categoryBar").style.display="none";tempImage="";document.getElementById('previewImg').style.display='none';document.getElementById("inp_code_display").value="";document.getElementById("scanStatus").innerText="";}
 
-async function saveCodeMapping(code, name){
-  const db = await openDB();
-  const tx = db.transaction(STORE_CODE, "readwrite");
-  const store = tx.objectStore(STORE_CODE);
-  const existing = await new Promise(r => store.get(code).onsuccess = e => r(e.target.result));
-  if (!existing) {
-    await new Promise(r => store.put({ code, model: name, category: "" }).onsuccess = r);
-  }
-}
+async function saveCodeMapping(code,model){
+  const lim=getLimits();if(!lim.allowLightning){const db=await openDB();const cnt=await new Promise(r=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).count().onsuccess=e=>r(e.target.result));if(cnt>=lim.maxCodeDict){alert(`基础版字典限${lim.maxCodeDict}条`);showUpgradeModal();return;}}
+  const db=await openDB();const exist=await new Promise(r=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).get(code).onsuccess=e=>r(e.target.result));
+  if(!exist)await new Promise(r=>db.transaction(STORE_CODE,"readwrite").objectStore(STORE_CODE).put({}));}
 
 function toggleList(){listVisible=!listVisible;document.getElementById("list").style.display=listVisible?"block":"none";document.querySelector(".toolbar button:nth-child(2)").innerText=listVisible?"🙈 隐藏":"📋 清单";if(listVisible)renderList();}
+const confirmRecord=withDB(async(db,idx)=>{const r=records[idx];if(!r)return;r.status='confirmed';await runDbOp(async()=>{await new Promise(rs=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).put(r).onsuccess=rs);});await loadRecords(db);renderList();navigator.vibrate&&navigator.vibrate([50,30,50]);});
+
+let lazyObserver=null;
+function initLazyLoad(){if(lazyObserver)lazyObserver.disconnect();lazyObserver=new IntersectionObserver((entries)=>{entries.forEach(entry=>{if(entry.isIntersecting){const img=entry.target;img.src=img.dataset.src;img.classList.remove('lazy-img');img.onload=()=>img.style.background='transparent';lazyObserver.unobserve(img);}});},{rootMargin:'150px'});document.querySelectorAll('.lazy-img').forEach(img=>lazyObserver.observe(img));}
 
 function renderList(){
   if(!records.length){document.getElementById("list").innerHTML="<p style='text-align:center;color:#999'>暂无数据</p>";return;}
-  const total=records.reduce((s,r)=>s+Number(r.qty||0),0);
-  const start=listPage*PAGE_SIZE;
-  const pageRecords=records.slice(start,start+PAGE_SIZE);
-  const container = document.getElementById("list");
-  container.innerHTML = '';
-  const fragment = document.createDocumentFragment();
-  const summaryDiv = document.createElement('div');
-  summaryDiv.className = 'list-summary';
-  summaryDiv.textContent = `📦 当前总数量：${total}`;
-  fragment.appendChild(summaryDiv);
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  thead.innerHTML = `<tr>
-    <th>序号</th>
-    <th>时间</th>
-    <th>条码</th>
-    <th>类别</th>
-    <th>图片</th>
-    <th>名称</th>
-    <th>规格</th>
-    <th>颜色</th>
-    <th>数量</th>
-    <th>码类型</th>
-    <th>备注</th>
-    <th>操作</th>
-  </tr>`;
-  table.appendChild(thead);
-  const tbody = document.createElement('tbody');
-  pageRecords.forEach((r,i)=>{
-    const idx=start+i;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td>${idx+1}</td>
-        <td>${escapeHtml(r.time)}</td>
-        <td>${escapeHtml(r.code)}</td>
-        <td>${escapeHtml(r.category)}</td>
-        <td><img src="${r.image}" data-src="${r.image}" class="thumbnail" style="cursor:zoom-in;" onclick="document.getElementById('bigImg').src=this.dataset.src;document.getElementById('imgModal').style.display='flex'"></td>
-        <td>${escapeHtml(r.model)}</td>
-        <td>${escapeHtml(r.spec)}</td>
-        <td>${escapeHtml(r.color)}</td>
-        <td>${r.qty}</td>
-        <td>${r.codeType === 'item' ? '单品码' : r.codeType === 'main' ? '主码' : '-'}</td>
-        <td>${escapeHtml(r.note)}</td>
-        <td><button onclick="deleteRecord(${idx})">🗑️</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  const tfoot = document.createElement('tfoot');
-  const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
-  Object.keys(cat).forEach(k=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="7"></td><td>${escapeHtml(k)} 合计：</td><td>${cat[k]}</td><td colspan="4"></td>`;
-    tfoot.appendChild(tr);
-  });
-  const trTotal = document.createElement('tr');
-  trTotal.innerHTML = `<td colspan="7"></td><td>盘点总计：</td><td>${total}</td><td colspan="4"></td>`;
-  tfoot.appendChild(trTotal);
-  table.appendChild(tfoot);
-  fragment.appendChild(table);
-  const paginationDiv = document.createElement('div');
-  paginationDiv.style.cssText = 'display:flex;justify-content:space-between;padding:8px';
-  paginationDiv.innerHTML = `
-      <button onclick="if(listPage>0){listPage--;renderList();}">⬅️ 上一页</button>
-      <span>第 ${listPage+1} / ${Math.ceil(records.length/PAGE_SIZE)} 页</span>
-      <button onclick="if((listPage+1)*PAGE_SIZE<records.length){listPage++;renderList();}">下一页 ➡️</button>
-  `;
-  fragment.appendChild(paginationDiv);
-  container.appendChild(fragment);
+  const total=records.reduce((s,r)=>s+Number(r.qty||0),0),pending=records.filter(r=>r.status==='pending').length;
+  const PAGE_SIZE=30;const start=listPage*PAGE_SIZE,pageRecs=records.slice(start,start+PAGE_SIZE);
+  const c=document.getElementById("list");c.innerHTML='';const frag=document.createDocumentFragment();
+  const lim=getLimits();
+  if(lim.allowBatchOps&&pageRecs.length>0){const d=document.createElement('div');d.className='batch-actions';d.innerHTML=`<label style="display:flex;align-items:center;gap:4px;font-size:13px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"> 全选</label><button class="delete-btn" onclick="batchDelete()">批量删除</button></div>`;frag.appendChild(d);}
+  const sum=document.createElement('div');sum.className='list-summary';sum.textContent=`📦 当前总数量：${total} | 待复核 ${pending} 条`;frag.appendChild(sum);
+  const tbl=document.createElement('table'),thea=document.createElement('thead');
+  thea.innerHTML=`<tr><th>序号</th>${lim.allowBatchOps?'<th></th>':''}<th>时间</th><th>条码</th><th>类别</th><th>图片</th><th>名称</th><th>规格</th><th>颜色</th><th>数量</th><th>状态</th><th>备注</th><th>操作</th></tr>`;
+  tbl.appendChild(thea);const tbod=document.createElement('tbody');
+  pageRecs.forEach((r,i)=>{const idx=start+i,tr=document.createElement('tr');if(r.status==='pending')tr.className='pending-row';
+    tr.innerHTML=`<td>${idx+1}</td>${lim.allowBatchOps?`<td class="checkbox-cell"><input type="checkbox" class="row-check" data-idx="${idx}"></td>`:''}<td>${escapeHtml(r.time)}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.category)}</td><td><img data-src="${r.image}" class="thumbnail lazy-img" style="background:#eee;min-height:50px;border-radius:4px"></td><td>${escapeHtml(r.model)}</td><td>${escapeHtml(r.spec)}</td><td>${escapeHtml(r.color)}</td><td>${r.qty}</td><td>${r.status==='pending'?'待复核':'已确认'}</td><td>${escapeHtml(r.note)}</td><td>${r.status==='pending'?`<button onclick="confirmRecord(${idx})">✅</button>`:''}<button onclick="deleteRecord(${idx})">🗑️</button></td>`;
+    tbod.appendChild(tr);});tbl.appendChild(tbod);
+  const tf=document.createElement('tfoot');const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
+  Object.keys(cat).forEach(k=>{const tr=document.createElement('tr');tr.innerHTML=`<td colspan="${lim.allowBatchOps?7:6}"></td><td>${escapeHtml(k)} 合计：</td><td>${cat[k]}</td><td colspan="4"></td>`;tf.appendChild(tr);});
+  const trt=document.createElement('tr');trt.innerHTML=`<td colspan="${lim.allowBatchOps?7:6}"></td><td>盘点总计：</td><td>${total}</td><td colspan="4"></td>`;tf.appendChild(trt);tbl.appendChild(tf);frag.appendChild(tbl);
+  const totalPages=Math.ceil(records.length/PAGE_SIZE);
+  const pag=document.createElement('div');pag.style.cssText='display:flex;justify-content:space-between;padding:12px;align-items:center;';
+  pag.className='list-pagination';
+  pag.innerHTML=`<button onclick="if(listPage>0){listPage--;renderList();}" ${listPage===0?'disabled style="opacity:.4"':''}>⬅️ 上一页</button><span style="font-size:14px">第 ${listPage+1} / ${totalPages} 页（共 ${records.length} 条）</span><button onclick="if((listPage+1)*PAGE_SIZE<records.length){listPage++;renderList();}" ${(listPage+1)*PAGE_SIZE>=records.length?'disabled style="opacity:.4"':''}>下一页 ➡️</button>`;
+  frag.appendChild(pag);c.appendChild(frag);initLazyLoad();
 }
-
-const deleteRecord=withDB(async(db,i)=>{if(!confirm("确定删除这条记录吗？"))return;await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).delete(records[i].id).onsuccess=r);await loadRecords(db);renderList();});
-
-const createBackup=withDB(async db=>{
-  if(!records.length)return alert("❌ 备份失败：暂无数据！");
-  const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));
-  if(list.length>=10)return alert("❌ 存储已满，请删除过期备份");
-  const t=Date.now();
-  const key=`inventory_backup_${t}`;
-  await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).put({key,time:new Date().toLocaleString(),count:records.length,locked:false,data:JSON.parse(JSON.stringify(records))}).onsuccess=r);
-  alert(`✅ 备份成功！\n已用 ${list.length+1} / 10`);
+function toggleSelectAll(el){document.querySelectorAll('.row-check').forEach(c=>c.checked=el.checked);}
+async function batchDelete(){const lim=getLimits();if(!lim.allowBatchOps)return showUpgradeModal();const chk=[...document.querySelectorAll('.row-check:checked')].map(c=>parseInt(c.dataset.idx)).sort((a,b)=>b-a);if(!chk.length)return alert('请先选择');if(!confirm(`⚠️ 确定删除选中的 ${chk.length} 条记录？\n\n此操作不可恢复！`))return;const db=await openDB();for(const idx of chk){const r=records[idx];if(r)await runDbOp(async()=>{await new Promise(rs=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).delete(r.id).onsuccess=rs);});}await loadRecords(db);renderList();alert(`已删除 ${chk.length} 条`);}
+const deleteRecord=withDB(async(db,i)=>{
+  if(!confirm("⚠️ 确定删除这条记录？\n\n此操作不可恢复！"))return;
+  const r=records[i];if(!r)return;await runDbOp(async()=>{await new Promise(rs=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).delete(r.id).onsuccess=rs);});await loadRecords(db);renderList();
 });
-
-const openRestoreModal=withDB(async db=>{
-  const c=document.getElementById("backupListContainer");
-  const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));
-  document.getElementById("backupCountText").innerText=`${list.length} / 10`;
-  if(!list.length){c.innerHTML="<p style='text-align:center;color:#999'>暂无备份记录</p>";document.getElementById("restoreModal").style.display="flex";return;}
-  list.sort((a,b)=>(a.locked&&!b.locked)?-1:(!a.locked&&b.locked)?1:new Date(b.time)-new Date(a.time));
-  c.innerHTML=list.map(i=>`<div style="background:${i.locked?'#eef6ff':'#fff'};padding:6px 8px;border-bottom:1px solid #eee;font-size:13px"><div onclick="restoreFromBackup('${i.key}')" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:bold">📅 ${escapeHtml(i.time)}</span><span style="color:#888">${i.count} 条</span></div><div style="display:flex;gap:6px"><button onclick="toggleLockBackup('${i.key}')" style="flex:1;padding:5px 0;font-size:12px;border:none;border-radius:4px;${i.locked?'background:#6c757d':'background:#17a2b8'};color:#fff">${i.locked?'🔒 已锁':'🔓 锁定'}</button><button onclick="deleteBackup('${i.key}')" style="flex:1;padding:5px 0;font-size:12px;background:#dc3545;color:#fff;border:none;border-radius:4px">❌ 删除</button></div></div>`).join("");
-  document.getElementById("restoreModal").style.display="flex";
-});
-
+const createBackup=withDB(async db=>{if(!records.length)return alert("暂无数据！");const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));if(list.length>=10)return alert("存储已满");const t=Date.now(),key=`inventory_backup_${t}`,cd=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));await runDbOp(async()=>{await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).put({key,time:new Date().toLocaleString(),count:records.length,locked:false,data:JSON.parse(JSON.stringify(records)),codeDict:JSON.parse(JSON.stringify(cd))}).onsuccess=r);});alert(`✅ 备份成功！已用 ${list.length+1}/10`);});
+const openRestoreModal=withDB(async db=>{const c=document.getElementById("backupListContainer"),list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));document.getElementById("backupCountText").innerText=`${list.length}/10`;if(!list.length){c.innerHTML="<p style='text-align:center;color:#999'>暂无备份</p>";document.getElementById("restoreModal").style.display="flex";return;}list.sort((a,b)=>(a.locked&&!b.locked)?-1:(!a.locked&&b.locked)?1:new Date(b.time)-new Date(a.time));c.innerHTML=list.map(i=>`<div style="background:${i.locked?'#eef6ff':'#fff'};padding:6px 8px;border-bottom:1px solid #eee;font-size:13px"><div onclick="restoreFromBackup('${i.key}')" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-weight:bold">📅 ${escapeHtml(i.time)}</span><span style="color:#888">${i.count}条</span></div><div style="display:flex;gap:6px"><button onclick="toggleLockBackup('${i.key}')" style="flex:1;padding:5px 0;font-size:12px;border:none;border-radius:4px;${i.locked?'background:#6c757d':'background:#17a2b8'};color:#fff">${i.locked?'🔒 已锁':'🔓 锁定'}</button><button onclick="deleteBackup('${i.key}')" style="flex:1;padding:5px 0;font-size:12px;background:#dc3545;color:#fff;border:none;border-radius:4px">❌ 删除</button></div></div>`).join("");document.getElementById("restoreModal").style.display="flex";});
 function closeRestoreModal(){document.getElementById("restoreModal").style.display="none";}
-
 const restoreFromBackup=withDB(async(db,key)=>{
-  if(!confirm("确定恢复？当前数据将丢失！"))return;
-  const backup=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).get(key).onsuccess=e=>res(e.target.result));
-  if(!backup||!backup.data){alert("❌ 恢复失败：备份数据为空或损坏！");return;}
-  await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).clear().onsuccess=r);
-  const tx=db.transaction(STORE_REC,"readwrite");const store=tx.objectStore(STORE_REC);
-  backup.data.forEach(record=>{if(!record.id)delete record.id;store.put(record);});
-  await new Promise(r=>tx.oncomplete=r);
-  await loadRecords(db);
-  closeRestoreModal();
-  alert("恢复成功！");
-  if(listVisible)renderList();
+  if(!confirm("⚠️ 确定从备份恢复？\n\n当前所有盘点数据将被覆盖且不可恢复！\n\n确定要继续吗？"))return;
+  const bak=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).get(key).onsuccess=e=>res(e.target.result));if(!bak||!bak.data){alert("备份损坏");return;}await runDbOp(async()=>{await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).clear().onsuccess=r);const tx=db.transaction(STORE_REC,"readwrite");bak.data.forEach(r=>{if(!r.id)delete r.id;tx.objectStore(STORE_REC).put(r);});await new Promise(r=>tx.oncomplete=r);});if(bak.codeDict&&Array.isArray(bak.codeDict)){const tx=db.transaction(STORE_CODE,"readwrite");bak.codeDict.forEach(i=>tx.objectStore(STORE_CODE).put(i));await new Promise(r=>tx.oncomplete=r);}await loadRecords(db);closeRestoreModal();alert("恢复成功！");if(listVisible)renderList();});
+const toggleLockBackup=withDB(async(db,key)=>{const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));const i=list.find(x=>x.key===key);if(!i)return;i.locked=!i.locked;await runDbOp(async()=>{await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).put(i).onsuccess=r);});openRestoreModal();});
+const deleteBackup=withDB(async(db,key)=>{const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));const i=list.find(x=>x.key===key);if(i?.locked)return alert("已锁定");if(!confirm("⚠️ 确定删除该备份？\n\n此操作不可恢复！"))return;await runDbOp(async()=>{await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).delete(key).onsuccess=r);});alert("已删除");openRestoreModal();});
+const clearAll=withDB(async db=>{
+  if(!confirm("⚠️ 确定清空所有数据？\n\n此操作将删除全部盘点记录和条码字典，且不可恢复！\n\n确定要继续吗？"))return;
+  await runDbOp(async()=>{await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).clear().onsuccess=r);});records=[];document.getElementById("list").innerHTML="";alert("已清空");
 });
-
-const toggleLockBackup=withDB(async(db,key)=>{const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));const i=list.find(x=>x.key===key);if(!i)return;i.locked=!i.locked;await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).put(i).onsuccess=r);openRestoreModal();});
-const deleteBackup=withDB(async(db,key)=>{const list=await new Promise(res=>db.transaction(STORE_BAK,"readonly").objectStore(STORE_BAK).getAll().onsuccess=e=>res(e.target.result||[]));const i=list.find(x=>x.key===key);if(i?.locked)return alert("已锁定，无法删除！");if(!confirm("确定删除？"))return;await new Promise(r=>db.transaction(STORE_BAK,"readwrite").objectStore(STORE_BAK).delete(key).onsuccess=r);alert("已删除！");openRestoreModal();});
-
-const clearAll=withDB(async db=>{if(!confirm("确定清空所有数据？"))return;await new Promise(r=>db.transaction(STORE_REC,"readwrite").objectStore(STORE_REC).clear().onsuccess=r);records=[];document.getElementById("list").innerHTML="";alert("已清空");});
-
 function toggleExportMenu(){const m=document.getElementById("exportMenu");m.style.display=m.style.display==="block"?"none":"block";}
 document.addEventListener("click",e=>{const m=document.getElementById("exportMenu"),btn=document.querySelector(".toolbar button[onclick*='toggleExportMenu']");if(m.style.display==="block"&&!m.contains(e.target)&&e.target!==btn)m.style.display="none";});
 
+async function loadProductsCache(){const db=await openDB();const allCodes=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));const map={};allCodes.forEach(item=>{if(!map[item.model])map[item.model]=[];map[item.model].push(item.code);});allProductsCache=Object.keys(map).map(model=>({model,codes:map[model]}));}
+
+function renderProductGroups(){
+  const kw=document.getElementById('codeSearch').value.toLowerCase();
+  const container=document.getElementById('productGroupsContainer');
+  const filtered=allProductsCache.filter(p=>p.model.toLowerCase().includes(kw)||p.codes.some(c=>c.toLowerCase().includes(kw)));
+  if(!filtered.length){container.innerHTML='<p style="text-align:center;color:#999;padding:20px">暂无数据</p>';return;}
+  container.innerHTML=filtered.map((p,idx)=>`
+    <div class="product-group">
+      <div class="product-group-header" onclick="toggleProductBody(${idx})">
+        <span>${escapeHtml(p.model)}</span>
+        <span class="badge">${p.codes.length} 个条码</span>
+      </div>
+      <div class="product-group-body" id="body_${idx}">
+        ${p.codes.map(c=>`<span class="code-tag">${escapeHtml(c)}<button class="remove-code" onclick="removeCodeFromProduct('${escapeHtml(p.model)}','${escapeHtml(c)}')">×</button></span>`).join('')}
+        <div class="add-code-row">
+          <input id="addCode_${idx}" placeholder="输入条码或前缀（如 150501006***）">
+          <button onclick="addCodeToProduct('${escapeHtml(p.model)}',${idx})">添加</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function toggleProductBody(idx){const body=document.getElementById(`body_${idx}`);body.classList.toggle('open');}
+async function createNewProduct(){const name=document.getElementById('newProductName').value.trim();if(!name)return alert('请输入产品名称');if(allProductsCache.find(p=>p.model===name))return alert('该产品已存在');const db=await openDB();await new Promise(r=>db.transaction(STORE_CODE,"readwrite").objectStore(STORE_CODE).put({code:'',model:name}).onsuccess=r);document.getElementById('newProductName').value='';await loadProductsCache();renderProductGroups();}
+async function addCodeToProduct(model,idx){const input=document.getElementById(`addCode_${idx}`);const code=input.value.trim();if(!code)return alert('请输入条码');const db=await openDB();const exist=await new Promise(r=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).get(code).onsuccess=e=>res(e.target.result));if(exist)return alert('该条码已存在于字典中');await new Promise(r=>db.transaction(STORE_CODE,"readwrite").objectStore(STORE_CODE).put({code,model}).onsuccess=r);input.value='';await loadProductsCache();renderProductGroups();}
+async function removeCodeFromProduct(model,code){
+  if(!confirm(`⚠️ 确定从"${model}"中删除条码 ${code}？\n\n此操作不可恢复！`))return;
+  const db=await openDB();await new Promise(r=>db.transaction(STORE_CODE,"readwrite").objectStore(STORE_CODE).delete(code).onsuccess=r);await loadProductsCache();renderProductGroups();
+}
+async function openCodeModal(){document.getElementById('codeModal').style.display='flex';document.getElementById('codeSearch').value='';await loadProductsCache();renderProductGroups();}
+function closeCodeModal(){document.getElementById('codeModal').style.display='none';}
+
 async function exportPackageZip(){
-  if(!records.length)return alert("❌ 导出失败：暂无数据！");
-  const z=new JSZip(),wb=XLSX.utils.book_new();
-  wb.Props={Title:"光子盘点",Author:"光子盘点系统"};
-  const ws=XLSX.utils.json_to_sheet([],{header:["序号","时间","条码","产品类别","产品名称","规格","颜色","数量","码类型","备注","图片编号"]});
-  records.forEach((r,i)=>{
-    const id=`IMG_${String(i+1).padStart(4,"0")}`;
-    XLSX.utils.sheet_add_json(ws,[{
-      序号:i+1,
-      时间:r.time,
-      条码:r.code,
-      产品类别:r.category,
-      产品名称:r.model,
-      规格:r.spec,
-      颜色:r.color,
-      数量:r.qty,
-      码类型:r.codeType === 'item' ? '单品码' : '主码',
-      备注:r.note,
-      图片编号:id
-    }],{skipHeader:true,origin:i+1});
-    const img=new Image();img.src=r.image;
-    const c=document.createElement("canvas"),ctx=c.getContext("2d");
-    c.width=img.width;c.height=img.height;
-    ctx.drawImage(img,0,0,img.width,img.height);
-    z.folder("images").file(`${id}.jpg`,r.image.split(",")[1],{base64:true});
-  });
+  if(!getLimits().allowRichExport)return showUpgradeModal();
+  if(!records.length)return alert("暂无数据！");
+  const z=new JSZip(),wb=XLSX.utils.book_new();wb.Props={Title:"光子盘点",Author:"光子盘点系统"};
+  const ws=XLSX.utils.json_to_sheet([],{header:["序号","时间","条码","产品类别","产品名称","规格","颜色","数量","状态","备注","图片编号"]});
+  records.forEach((r,i)=>{const id=`IMG_${String(i+1).padStart(4,"0")}`;XLSX.utils.sheet_add_json(ws,[{序号:i+1,时间:r.time,条码:r.code,产品类别:r.category,产品名称:r.model,规格:r.spec,颜色:r.color,数量:r.qty,状态:r.status==='pending'?'待复核':'已确认',备注:r.note,图片编号:id}],{skipHeader:true,origin:i+1});z.folder("images").file(`${id}.jpg`,r.image.split(",")[1],{base64:true});});
   const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
-  Object.keys(cat).forEach(k=>XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",条码:"",产品类别:k,产品名称:"类别合计",规格:"",颜色:"",数量:cat[k],码类型:"",备注:"",图片编号:""}],{skipHeader:true,origin:-1}));
-  XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",条码:"",产品类别:"总计",产品名称:"盘点总计",规格:"",颜色:"",数量:records.reduce((s,r)=>s+Number(r.qty||0),0),码类型:"",备注:"",图片编号:""}],{skipHeader:true,origin:-1});
+  Object.keys(cat).forEach(k=>XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",条码:"",产品类别:k,产品名称:"类别合计",规格:"",颜色:"",数量:cat[k],状态:"",备注:"",图片编号:""}],{skipHeader:true,origin:i+1}));
+  XLSX.utils.sheet_add_json(ws,[{序号:"",时间:"",条码:"",产品类别:"总计",产品名称:"盘点总计",规格:"",颜色:"",数量:records.reduce((s,r)=>s+Number(r.qty||0),0),状态:"",备注:"",图片编号:""}],{skipHeader:true,origin:i+1});
   XLSX.utils.book_append_sheet(wb,ws,"盘点数据");
   const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
   z.file(`光子盘点_${ds}.zip`,XLSX.write(wb,{bookType:"xlsx",type:"array"}),{binary:true});
-  await saveAs(await z.generateAsync({type:"blob",compression:"STORE"}),`光子盘点_${ds}.zip`);
-  alert("✅ ZIP 导出成功！");
+  await saveAs(await z.generateAsync({type:"blob",compression:"STORE"}),`光子盘点_${ds}.zip`);alert("✅ 导出成功！");
 }
 
 async function exportPackageExcel(){
-  if(!records.length)return alert("❌ 导出失败：暂无数据！");
-  const btn=document.querySelector(".toolbar button[onclick*='toggleExportMenu']");
-  btn.innerText="⏳ 生成中";btn.disabled=true;
+  if(!getLimits().allowRichExport)return showUpgradeModal();
+  if(!records.length)return alert("暂无数据！");
+  const mask=document.getElementById('exportProgressMask'),bar=document.getElementById('exportProgressBar'),txt=document.getElementById('exportProgressText');
+  mask.style.display='flex';bar.style.width='0%';txt.innerText='开始导出...';
   try{
-    const workbook=new ExcelJS.Workbook();
-    const ws=workbook.addWorksheet("盘点清单");
-    ws.columns=[
-      {header:"序号",width:6},
-      {header:"时间",width:20},
-      {header:"条码",width:18},
-      {header:"产品类别",width:10},
-      {header:"图片",width:18},
-      {header:"产品名称",width:16},
-      {header:"规格",width:12},
-      {header:"颜色",width:10},
-      {header:"数量",width:8},
-      {header:"码类型",width:10},
-      {header:"备注",width:16}
-    ];
-    const MAX_EXPORT_IMAGES = 500;
-    for(let i=0;i<Math.min(records.length,MAX_EXPORT_IMAGES);i++){
-      const r=records[i];
-      ws.addRow([i+1,r.time,r.code,r.category,"",r.model,r.spec,r.color,r.qty,r.codeType === 'item' ? '单品码' : '主码',r.note]);
-      if(!r.image)continue;
-      const base64=r.image.startsWith("data:image")?r.image.split(",")[1]:null;
-      if(!base64)continue;
-      const imageId=workbook.addImage({base64,extension:"jpeg"});
-      ws.addImage(imageId, {
-        tl: { col: 4, row: i + 1 },
-        ext: { width: 220, height: 165 },
-        editAs: "absolute"
-      });
-      ws.getRow(i+2).height = 130;
+    const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet("盘点清单");
+    ws.columns=[{header:"序号",width:6},{header:"时间",width:20},{header:"条码",width:18},{header:"产品类别",width:10},{header:"图片",width:18},{header:"产品名称",width:16},{header:"规格",width:12},{header:"颜色",width:10},{header:"数量",width:8},{header:"状态",width:10},{header:"备注",width:16}];
+    for(let i=0;i<records.length;i++){
+      const r=records[i];ws.addRow([i+1,r.time,r.code,r.category,"",r.model,r.spec,r.color,r.qty,r.status==='pending'?'待复核':'已确认',r.note]);
+      if(r.image){const b=r.image.startsWith("data:image")?r.image.split(",")[1]:null;if(b){const id=wb.addImage({base64:b,extension:"jpeg"});ws.addImage(id,{tl:{col:4,row:i+1},ext:{width:220,height:165},editAs:"absolute"});ws.getRow(i+2).height=130;}}
+      bar.style.width=((i+1)/records.length*100)+'%';txt.innerText=`处理 ${i+1}/${records.length}`;await new Promise(r=>setTimeout(r,0));
     }
     const cat={};records.forEach(r=>cat[r.category]=(cat[r.category]||0)+Number(r.qty||0));
-    Object.keys(cat).forEach(k=>{const row=ws.addRow([]);row.getCell(6).value=k+" 合计：";row.getCell(9).value=cat[k];});
-    const total=records.reduce((s,r)=>s+Number(r.qty||0),0);
-    const tr=ws.addRow([]);tr.getCell(6).value="盘点总计：";tr.getCell(9).value=total;
+    Object.keys(cat).forEach(k=>{const rw=ws.addRow([]);rw.getCell(6).value=k+" 合计：";rw.getCell(9).value=cat[k];});
+    const tq=records.reduce((s,r)=>s+Number(r.qty||0),0);const tr=ws.addRow([]);tr.getCell(6).value="盘点总计：";tr.getCell(9).value=tq;
+    txt.innerText='生成文件中...';const buf=await wb.xlsx.writeBuffer();
     const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-    const buffer=await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`光子盘点_${ds}_带图.xlsx`);
-    alert("✅ Excel 导出成功！");
-  }catch(e){alert("❌ Excel 导出失败："+e.message);}
-  finally{btn.innerText="📤 导出";btn.disabled=false;document.getElementById("exportMenu").style.display="none";}
+    saveAs(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`光子盘点_${ds}_带图.xlsx`);txt.innerText='✅ 完成';setTimeout(()=>mask.style.display='none',800);
+  }catch(e){alert("导出失败："+e.message);mask.style.display='none';}
 }
 
-async function exportCodeDict(){const db=await openDB();const list=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));if(!list.length)return alert("❌ 暂无条码字典可导出");const ws=XLSX.utils.json_to_sheet(list,{header:["code","model"]});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"条码字典");const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});saveAs(blob,`条码字典_${ds}.xlsx`);alert("✅ 条码字典导出成功");}
-
-async function exportCodeDictCSV(){const db=await openDB();const list=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));if(!list.length)return alert("❌ 暂无条码字典可导出");const rows=[["条码","产品名称"],...list.map(i=>[i.code,i.model])];const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;saveAs(blob,`条码字典_${ds}.csv`);alert("✅ 条码字典 CSV 导出成功");}
-
-function exportInventoryCSV(){if(!records.length)return alert("❌ 暂无盘点数据");const rows=[["序号","时间","条码","产品类别","产品名称","规格","颜色","数量","码类型","备注"],...records.map((r,i)=>[i+1,r.time,r.code,r.category,r.model,r.spec,r.color,r.qty,r.codeType === 'item' ? '单品码' : '主码',r.note])];const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;saveAs(blob,`光子盘点_${ds}.csv`);alert("✅ 盘点 CSV 导出成功");}
-
-async function importCodeDict(){const inp=document.createElement("input");inp.type="file";inp.accept=".xlsx,.xls";inp.onchange=async e=>{const f=e.target.files[0];if(!f)return;const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const ws=wb.Sheets[wb.SheetNames[0]];const data=XLSX.utils.sheet_to_json(ws);if(!data.length)return alert("❌ 文件中无有效数据");const db=await openDB();let added=0,updated=0;for(const r of data){const code=r["条码"]||r["code"];const name=r["产品名称"]||r["model"];if(!code||!name)continue;const exists=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).get(code).onsuccess=e=>res(!!e.target.result));await saveCodeMapping(code,name);exists?updated++:added++;}alert(`✅ 导入完成\n新增：${added}\n覆盖更新：${updated}`);openCodeModal();};inp.click();}
-
-function openCodeModal(){alert("条码字典已升级为主码+单品码结构，请在扫码时自动使用");}
-function closeCodeModal(){document.getElementById("codeModal").style.display="none";}
-function searchCode(){}
-
-function openSettingsModal(){
-  document.getElementById("settingsModal").style.display="flex";
-  setInterval(updateOcrStatsDisplay, 1000);
-  document.getElementById("flashlightSwitch").onchange = function () {
-    updateFlashlight(this.checked);
-  };
-  document.getElementById("ocrTencentSwitch").checked = true;
+async function exportCodeDict(){
+  if(!getLimits().allowRichExport){showUpgradeModal();return;}
+  const db=await openDB();const list=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));
+  if(!list.length)return alert("暂无字典");
+  const ws=XLSX.utils.json_to_sheet(list,{header:["code","model"]});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"条码字典");
+  const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  saveAs(new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`条码字典_${ds}.xlsx`);
+  alert("✅ 导出成功");
 }
-function closeSettingsModal(){
-  document.getElementById("settingsModal").style.display="none";
+async function exportCodeDictCSV(){
+  if(!getLimits().allowRichExport){showUpgradeModal();return;}
+  const db=await openDB();const list=await new Promise(res=>db.transaction(STORE_CODE,"readonly").objectStore(STORE_CODE).getAll().onsuccess=e=>res(e.target.result||[]));
+  if(!list.length)return alert("暂无字典");
+  const rows=[["条码","产品名称"],...list.map(i=>[i.code,i.model])];
+  const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");
+  saveAs(new Blob([csv],{type:"text/csv;charset=utf-8;"}),`条码字典_${new Date().toISOString().slice(0,10)}.csv`);
+  alert("✅ 导出成功");
 }
-function sendFeedback(){
-  const text=document.getElementById("feedbackText").value.trim();
-  if(!text){
-    alert("请先输入反馈内容");
-    return;
+function exportInventoryCSV(){if(!records.length)return alert("暂无数据");const rows=[["序号","时间","条码","产品类别","产品名称","规格","颜色","数量","状态","备注"],...records.map((r,i)=>[i+1,r.time,r.code,r.category,r.model,r.spec,r.color,r.qty,r.status==='pending'?'待复核':'已确认',r.note])];const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");saveAs(new Blob([csv],{type:"text/csv;charset=utf-8;"}),`盘点数据_${new Date().toISOString().slice(0,10)}.csv`);alert("✅ 导出成功");}
+
+function openSettingsModal(){document.getElementById("settingsModal").style.display="flex";document.getElementById("flashlightSwitch").onchange=function(){updateFlashlight(this.checked);};}
+function closeSettingsModal(){document.getElementById("settingsModal").style.display="none";}
+function sendFeedback(){const t=document.getElementById("feedbackText").value.trim();if(!t)return alert("请先输入");window.location.href=`mailto:guangzi618@qq.com?subject=${encodeURIComponent("光子盘点反馈")}&body=${encodeURIComponent(t)}`;}
+function showCategoryModal(){document.getElementById('categoryModal').style.display='flex';}
+function selectCategory(cat){lightningCategory=cat;document.getElementById('currentCat').innerText=cat;closeCategoryModal();}
+function closeCategoryModal(){document.getElementById('categoryModal').style.display='none';}
+
+document.addEventListener("visibilitychange",()=>{if(document.hidden){if(video.srcObject)video.srcObject=null;}else{attachCamera();}});
+
+let devDblTapTimer=null;
+document.getElementById('devTrigger').addEventListener('click',()=>{if(devDblTapTimer){clearTimeout(devDblTapTimer);document.getElementById('devPanel').style.display=document.getElementById('devPanel').style.display==='none'?'block':'none';devDblTapTimer=null;}else{devDblTapTimer=setTimeout(()=>devDblTapTimer=null,300);}});
+
+initTrial();
+autoMigrate();
+updateVersionUI();
+initDB();
+checkTrialReminder();
+
+// ✅ 启动时云端校验授权
+(async function verifyOnline() {
+  const lic = getLicense();
+  if (!lic || lic.version === 'basic') return;
+  
+  try {
+    const resp = await fetch(API_VERIFY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deviceCode: getDeviceCode(),
+        version: lic.version,
+        expire: lic.expire
+      })
+    });
+    const result = await resp.json();
+    if (!result.valid) {
+      localStorage.removeItem(LICENSE_KEY);
+      updateVersionUI();
+      alert("授权验证失败，已降级为免费版");
+    }
+  } catch (e) {
+    console.log('离线模式，跳过云端校验');
   }
-  const subject = encodeURIComponent("光子盘点App反馈");
-  const body = encodeURIComponent(text);
-  window.location.href = `mailto:guangzi618@qq.com?subject=${subject}&body=${body}`;
-  closeSettingsModal();
-}
+})();
 
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    stopCamera();
-    stopScan();
-    realtimeOcrActive = false;
-    ocrLocalActive = ocrTencentActive = ocrBaiduActive = false;
-    updateFlashlight(false);
+// ===== 页面加载完成后执行硬探测，决定是否显示拍照识别按钮 =====
+detectLiveScanSupport().then(supported => {
+  if (!supported) {
+    document.getElementById('scanBtn').style.display = 'none';
+    document.getElementById('photoScanBtn').style.display = 'flex';
   }
 });
-
-/* ========== 连续拍照类别 ========== */
-const CATEGORIES=["床架","床垫","床头柜","沙发","小件"];
-let quickCategory="床架";
-
-function showCategoryPicker(){
-  const sel=document.createElement("select");
-  sel.style.fontSize="22px";
-  CATEGORIES.forEach(c=>{
-    const o=document.createElement("option");
-    o.value=o.text=c;
-    if(c===quickCategory)o.selected=true;
-    sel.appendChild(o);
-  });
-  sel.onchange=()=>{
-    quickCategory=sel.value;
-    document.getElementById("currentCat").innerText=quickCategory;
-    document.getElementById("inp_category").value=quickCategory;
-    sel.remove();
-  };
-  sel.onblur=()=>sel.remove();
-  document.body.appendChild(sel);
-  sel.focus();
-  sel.click();
-}
-
-initDB();
 </script>
 </body>
 </html>
